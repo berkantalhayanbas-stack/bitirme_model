@@ -1,0 +1,336 @@
+% Derleme: XeLaTeX (Overleaf: Menu -> Compiler -> XeLaTeX)
+\documentclass[11pt,a4paper]{article}
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{turkish}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amssymb,amsmath}
+\usepackage{enumitem}
+\usepackage{booktabs,tabularx,longtable}
+\usepackage[table]{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{ana}{HTML}{0F6E56}
+\definecolor{acik}{HTML}{E1F5EE}
+\definecolor{uyari}{HTML}{993C1D}
+\definecolor{uyariacik}{HTML}{FAECE7}
+
+\titleformat{\section}{\Large\bfseries\color{ana}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.5em}{}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlength{\emergencystretch}{3em}\sloppy
+
+\pagestyle{fancy}\fancyhf{}
+\lhead{\small Bitirme Projesi -- Yapılacaklar Listesi}
+\rhead{\small v1.4 -- 11 Kasım 2026}
+\cfoot{\small\thepage}
+
+% ---- Görev listesi ----
+\newlist{gorev}{itemize}{2}
+\setlist[gorev]{label=$\square$, leftmargin=1.6em, itemsep=5pt, parsep=1pt}
+\newcommand{\cikti}[1]{\par{\small\textit{Çıktı:} #1}}
+\newcommand{\kabul}[1]{\par{\small\textit{Kabul ölçütü:} #1}}
+\newcommand{\donanim}{\textcolor{uyari}{\small[DONANIM]}\ }
+\newcommand{\artı}{\textcolor{ana}{\small[FARK]}\ }
+
+\newtcolorbox{faz}[2]{colback=acik,colframe=ana,fonttitle=\bfseries,
+  title={#1},boxrule=0.6pt,arc=2pt,before upper={\textbf{Kilometre taşı:} #2\par}}
+\newtcolorbox{kontrol}{colback=acik,colframe=ana,fonttitle=\bfseries,
+  title={Haftalık kontrol},boxrule=0.6pt,arc=2pt}
+\newtcolorbox{dikkat}{colback=uyariacik,colframe=uyari,boxrule=0.6pt,arc=2pt}
+
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries\color{ana} EV Batarya Kontrol Ünitesi -- HIL Test Platformu}\\[4pt]
+{\large Yapılacaklar Listesi ve Adım Adım Uygulama Planı}\\[4pt]
+{\small 19S12P LG 21700 Dijital İkiz \textbullet{} EKF \textbullet{} Hafif ML \textbullet{} CAN \textbullet{} Güvenli Güç Kısma}
+\end{center}
+
+\section*{Nasıl kullanılır}
+\begin{itemize}[leftmargin=1.2em,itemsep=1pt]
+  \item Her görevin bir \textit{çıktısı} ve ölçülebilir bir \textit{kabul ölçütü} var. Ölçüt sağlanmadan kutu işaretlenmez.
+  \item \donanim etiketli görevler fiziksel parça gerektirir. Diğer her şey parçalar gelmeden bilgisayarda yapılabilir.
+  \item \artı etiketli görevler projeyi sıradan bir bitirme projesinden ayıran kısımlardır. Zaman sıkışırsa önce bunlar ertelenir, temel akış (MVP) değil.
+  \item Tarihler 6 haftalık takvime göredir. Teslim tarihi kesinleşince haftalar kaydırılır, sıra değişmez.
+\end{itemize}
+
+% =====================================================================
+\section{Proje mimarisi: 4 hedef, 4 modül}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.2cm}X X}
+\toprule
+Hedef & Yazılım modülü & Fiziksel karşılığı \\
+\midrule
+1. Dijital ikiz ve taklit devre & 2-RC + 2 düğüm termal model, yaşlanma (stres) modeli, sürüş çevrimi & Emülatör Arduino Uno (Robotistan seti): ikizi 10 ms'de koşturur, ölçümleri CAN'a basar \\
+2. Çift yönlü CAN & DBC, sayaç + CRC bütünlük koruması, zaman aşımı izleme & STM32 (dahili FDCAN + TJA1050) ile Arduino (MCP2515 + TJA1050), 500 kbps, uçlarda 120 $\Omega$ \\
+3. Sinyal işleme + ML & Ön filtre, EKF (SOC), termal gözlemci ($T_\text{core}$), özellik çıkarımı, karar ağacı $\rightarrow \Psi_\text{stress}$ & ECU STM32 üzerinde, $<1$ ms döngü \\
+4. Güvenli karar mekanizması & 4 durumlu makine (NORMAL, DERATE, LIMP-HOME, SAFE-STOP), histerezis, $I_\text{allow}$ & PWM $\rightarrow$ MOSFET $\rightarrow$ 12 V lamba \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{Yazılım araçları (hepsi elde mevcut veya ücretsiz):} MATLAB/Simulink R2025b (Signal Processing ve DSP System Toolbox dahil), Python (numpy, scikit-learn), STM32CubeIDE, Arduino IDE, Git/GitHub, Overleaf.
+
+\textbf{Donanım kararı (bütçe):} Tek STM32 (ECU) ve elde bulunan Arduino Uno (batarya emülatörü). Ağda iki farklı üreticinin CAN denetleyicisi (STM32 FDCAN/bxCAN ve Microchip MCP2515) konuşur; bu, protokolün standarda uygunluğunu gösterir ve gerçek araçlardaki çok tedarikçili ECU yapısına benzer.
+
+\begin{dikkat}
+\textbf{Lisans gerçeği ve çözümü.} Stateflow, Embedded Coder ve Statistics \& ML Toolbox yok. Bu yüzden:
+(i) durum makinesi MATLAB Function bloğunda \texttt{switch-case} ile yazılır;
+(ii) STM32 kodu STM32CubeIDE'de elle yazılır ve C kodu MATLAB çıktısıyla \emph{birebir} karşılaştırılır (SIL testi);
+(iii) ML modeli Python'da eğitilir, C'ye aktarılır;
+(iv) canlı izleme, Nucleo'nun ST-LINK USB'si üzerinden UART ile yapılır (MATLAB \texttt{serialport} veya Python).
+Simulink'in harici modu Embedded Coder gerektirdiği için kullanılmıyor.
+\end{dikkat}
+
+% =====================================================================
+\section{Faz 0 -- Altyapı ve sipariş (8--9 Kasım)}
+\begin{faz}{Amaç: çalışma ortamını kurmak ve parçaları hemen sipariş etmek}{Simulink paketi çalışıyor, sipariş verildi}
+Parçalara 4. haftaya kadar ihtiyaç yok, ama siparişi şimdi vermek gecikme riskini sıfırlar.
+\end{faz}
+\begin{gorev}
+  \item GitHub'da özel bir repo aç. Klasör yapısı:
+  \texttt{twin/ simulink/ ml/ firmware/common firmware/emulator firmware/ecu tools/ thesis/}
+  \cikti{Repo bağlantısı; mevcut Python ve Simulink dosyaları yüklü}
+  \kabul{Her çalışma günü en az bir commit atılıyor}
+  \item[$\boxtimes$] Simulink paketini çalıştır: \texttt{build\_bms\_model}, ardından \texttt{run\_and\_compare}.
+  \cikti{\texttt{bms\_twin\_ekf.slx} ve iki grafik}
+  \kabul{Simulink ile Python arasındaki $V_\text{pack}$ farkı $<1$ mV; EKF RMSE $<\%1.5$}
+  \item[$\boxtimes$] MATLAB'a MinGW-w64 eklentisini kur (Add-Ons, ücretsiz). PC'de C derlemek ve SIL testi için gerekli.
+  \kabul{\texttt{mex -setup C} komutu MinGW'yi gösteriyor}
+  \item[$\boxtimes$] \donanim Bölüm~\ref{sec:bom}'deki listeyi sipariş et.
+  \kabul{Sipariş numaraları bu belgeye not edildi}
+  \item Hocayla 15 dakikalık bir toplantı yap: kapsamı (4 hedef), teslim tarihini ve tez formatını netleştir.
+  \cikti{Teslim tarihi ve tez şablonu}
+\end{gorev}
+
+% =====================================================================
+\section{Hafta 1 -- Dijital ikiz ve yaşlanma modeli (9--15 Kasım)}
+\begin{faz}{Hedef 1: tam fonksiyonlu, senaryo koşturabilen dijital ikiz}{senaryo grafikleri}
+\end{faz}
+\begin{gorev}
+  \item[$\boxtimes$] Hücre parametrelerini LG M50T veri sayfası ve literatür değerleriyle gözden geçir; her parametrenin kaynağını tabloya yaz. (Hücre etiketi doğrulandı: INR21700 M50T.)
+  \cikti{\texttt{bms\_param\_struct.m} içinde kaynak yorumları; tez için parametre tablosu}
+  \item[$\boxtimes$] Senaryo kütüphanesi kur: (a) normal 25\,°C; (b) sıcak gün 40\,°C; (c) soğutma arızası ($R_u\times3$); (d) agresif sürüş; (e) derin deşarj; (f) uzun şarj.
+  \cikti{\texttt{scenarios.m}: tek komutla 6 senaryo ve otomatik grafik}
+  \kabul{(c) senaryosunda $T_\text{core}$ 45\,°C üstüne çıkıyor (derating testi için gerekli)}
+  \item[$\boxtimes$] Sürüş çevrimini pedal girişine bağla: pedal (\%0--100) $\rightarrow$ akım talebi $\rightarrow$ ECU'dan gelen $I_\text{allow}$ ile sınırlama. Kapalı çevrimin ilk hali.
+  \kabul{$I_\text{allow}$ düşünce paket akımı da düşüyor}
+  \item[$\boxtimes$] \artı Zayıf hücre modeli: 19 hücreden birine \%10 düşük kapasite ve \%20 yüksek $R_0$ ver; ortalama ve zayıf hücre gerilimlerini ayrı çıkar.
+  \kabul{Deşarj sonunda zayıf hücre $V_\text{min}$'e ortalamadan önce ulaşıyor}
+  \item[$\boxtimes$] Yaşlanma (stres) modeli (Millner 2010 ve Pelletier 2017 temelli):
+  takvim yaşlanması $\propto \exp(-E_a/RT)\cdot f(\text{SOC})$, çevrim yaşlanması $\propto f(\text{DoD}, T, C\text{-rate})$.
+  Çevrim sayımı için Signal Processing Toolbox'taki \texttt{rainflow} fonksiyonunu kullan.
+  \cikti{\texttt{aging\_model.m}: senaryo başına kapasite kaybı [\%/1000 km]}
+  \kabul{Sıcak ve agresif senaryolar normalden belirgin şekilde daha fazla yaşlanma veriyor; değerler literatür mertebesinde}
+\end{gorev}
+
+% =====================================================================
+\section{Hafta 2 -- Sinyal işleme ve kestirim (16--22 Kasım)}
+\begin{faz}{Hedef 3, birinci yarı: gürültülü ölçümden güvenilir durum bilgisi}{karşılaştırma tablosu}
+\end{faz}
+\begin{gorev}
+  \item[$\boxtimes$] Sensör hata kütüphanesi: gürültü, kayma, kuantalama (mevcut), bunlara ek olarak ani sıçrama (spike), donmuş sensör ve kopuk NTC.
+  \cikti{\texttt{fault\_injector.m}, \texttt{sensor\_diag.m}, EKF inovasyon kapısı; 6 kabul testi geçti}
+  \item[$\boxtimes$] Ön filtre: Signal Processing Toolbox ile akım ve sıcaklık için düşük geçiren filtre tasarla (\texttt{designfilt}); gecikme ve gürültü azaltma ödünleşimini raporla.
+  \cikti{\texttt{prefilter\_study.py}, \texttt{prefilter\_design.m}: EKF girdisi filtrelenmez; eşikler için 2. derece Butterworth 0,5 Hz}
+  \kabul{(Eski ölçüt ``gecikme $<50$ ms'' fiziksel olarak anlamsızdı, revize edildi.) Isıl eşiklerde gecikme $<1$ s ve titreşim $\ge\%90$ azalma (sağlandı: 0,45 s, \%97)}
+  \item[$\boxtimes$] Kestirim yöntemlerini karşılaştır: Coulomb sayımı, OCV tablosu, EKF (sabit $R_0$), EKF ($R_0(T)$), EKF + akım kayması durumu.
+  \cikti{Tez için tablo: RMSE, maksimum hata, yakınsama süresi, işlem yükü}
+  \kabul{En iyi EKF tüm senaryolarda RMSE $<\%1.5$ (sağlandı: \%0,23--0,55; sabit $R_0$ 40\,°C'de \%2,3 ile aşıyor)}
+  \item[$\boxtimes$] Termal gözlemci: 2 düğümlü modeli $T_\text{surf}$ ölçümüyle düzelten Kalman filtresi kur ve $T_\text{core}$'u kestir.
+  \kabul{Soğutma arızası senaryosunda $|T_\text{core}-\hat T_\text{core}|<1$\,°C (sağlandı: 0,28\,°C; soğutma arızası 471 s'de algılandı)}
+\item[$\boxtimes$] Çevrimiçi iç direnç kestirimi (ML'in sağlık göstergesi): $|\Delta I|\ge20$ A basamaklarında $\Delta V/\Delta I$, sıcaklık ve SOC'ye normalize, en küçük kareler (Das \& Kumar 2023 iHI fikri).
+  \cikti{\texttt{rint\_estimator.m}; 3 sürüşte hata $<\%1$}
+\end{gorev}
+
+% =====================================================================
+\section{Hafta 3 -- Karar mekanizması (23--29 Kasım)}
+\begin{faz}{Hedef 3 ikinci yarı + Hedef 4}{kapalı çevrimde güç kısma simülasyonu}
+\end{faz}
+\subsection*{3a. Hafif makine öğrenmesi (2. haftaya öne çekildi, kapsam değişti)}
+\textbf{Karar (11 Kasım):} Vekil (surrogate) stres modeli yerine \emph{gerçek veriyle SOH tahmini}: Kirkaldy vd. (2024) LG M50T verisi (40 hücre, 15 koşul). Etiketler gerçek ölçüm, kendi modelimizin çıktısı değil.
+\begin{gorev}
+  \item[$\boxtimes$] Veri hazırlama ve aykırı değer temizliği (\texttt{ml/01}); ilk modeller ve aşırı öğrenme (\texttt{ml/02}).
+  \item[$\boxtimes$] Çapraz doğrulama \emph{koşul bazında} (leave-one-condition-out); veri sızıntısı karşılaştırması; fizik modeli, doğrusal, ağaç, gradient boosting, hibrit (\texttt{ml/03}).
+  \kabul{Görülmemiş koşulda SOH RMSE $<\%3.5$ (sağlandı: \%2,99; hedef ML problemi değişince revize edildi)}
+  \item[$\boxtimes$] Fizik kısıtlı karar ağacı (derinlik 3, monoton), C ve MATLAB'a otomatik aktarım (\texttt{ml/04}).
+  \kabul{C ile Python aynı girdide $10^{-5}$ içinde eşit (sağlandı: $<4\cdot10^{-7}$)}
+  \item[$\boxtimes$] Uçtan uca demo: çevrimiçi direnç $\rightarrow$ ML SOH $\rightarrow$ EKF, yaşlanmış pakette (\texttt{ml/05}).
+  \item Simulink karşılığını çalıştır: \texttt{test\_ml\_soh}.
+  \kabul{ML ile güncellenen BMS'in SOC RMSE'si yeni-hücre BMS'in en fazla yarısı}
+\end{gorev}
+
+\subsection*{3b. Güvenli karar mekanizması}
+\begin{gorev}
+  \item Durum makinesi (MATLAB Function, \texttt{switch-case}):
+  \begin{itemize}[leftmargin=1.2em,itemsep=0pt]
+    \item \textbf{NORMAL}: $I_\text{allow}=I_\text{nom}$
+    \item \textbf{DERATE}: $I_\text{allow}=I_\text{nom}(1-\Psi_\text{stress})$, rampalı geçiş; $\Psi_\text{stress}$ çok kriterli: $\hat T_\text{core}$, $V_\text{cell,min}$, SOC, $\hat R_u$ alarmı, SOH, sensör bayrakları ve veri sayfasının sıcaklığa bağlı akım sınırları
+    \item \textbf{LIMP-HOME}: $I_\text{allow}=I_\text{min}$ (lamba \%25, asla sönmez)
+    \item \textbf{SAFE-STOP}: $I_\text{allow}=0$; $T>60$\,°C, $V_\text{cell}>4.25$ V, $V_\text{cell}<2.7$ V veya CAN zaman aşımı. Kilitlenir, sadece reset ile çıkılır.
+  \end{itemize}
+  \cikti{\texttt{decision\_logic.m} ve tez için durum diyagramı}
+  \item Her geçişe histerezis ve süre filtresi ekle (örn. 40\,°C'de gir, 37\,°C'de 5 s bekleyerek çık).
+  \kabul{Sınır değerin etrafında salınan girdide durum titreşmiyor}
+  \item \artı Test matrisi: her durum geçişi için bir test senaryosu, beklenen sonuç ve gerçekleşen sonuç (basit FMEA tablosu).
+  \kabul{Tüm geçişler en az bir testle kapsanıyor; tüm testler geçiyor}
+  \item Kapalı çevrim simülasyonu: ikiz $\rightarrow$ sensör $\rightarrow$ EKF/ML $\rightarrow$ karar $\rightarrow$ akım sınırı $\rightarrow$ ikiz.
+  \kabul{Soğutma arızasında $T_\text{core}$ derating sayesinde 55\,°C altında kalıyor; derating olmadan aşıyor (karşılaştırmalı grafik)}
+\end{gorev}
+
+% =====================================================================
+\section{Hafta 4 -- Gömülü C, SIL ve CAN (30 Kasım -- 6 Aralık)}
+\begin{faz}{Hedef 2 + algoritmaların karta taşınması}{iki kart CAN'da konuşuyor}
+\end{faz}
+\begin{gorev}
+  \item \texttt{firmware/common/}: \texttt{ekf.c}, \texttt{thermal\_obs.c}, \texttt{stress\_tree.c}, \texttt{decision.c}, \texttt{bms\_can.c}. \texttt{float32}, dinamik bellek yok, platformdan bağımsız.
+  \item \textbf{SIL testi (kart gerekmez):} ortak C kodunu PC'de derle, MATLAB'ın ürettiği girdi CSV'sini işlet, çıktıyı MATLAB ile karşılaştır.
+  \kabul{SOC farkı $<0.05$ puan, durum geçişleri birebir aynı}
+  \item CAN protokolü (DBC dosyası):
+  0x101 Emülatör$\rightarrow$ECU ($V$, $I$, $T_\text{surf}$, $V_\text{zayıf}$),
+  0x201 ECU$\rightarrow$Emülatör (SOC, $\hat T_\text{core}$, $\Psi$, $I_\text{allow}$, durum),
+  0x301 komut/hata enjeksiyonu. Her mesajda 4 bitlik \emph{alive counter} ve CRC-8 (SAE J1850).
+  \cikti{\texttt{bms.dbc} ve \texttt{bms\_can.c} kodlama/çözme fonksiyonları}
+  \item \artı Zaman aşımı izleyici: 0x101 mesajı 50 ms gelmezse hata, 100 ms gelmezse SAFE-STOP.
+  \item \donanim ECU: CubeIDE proje iskeleti (CAN, TIM PWM 1 kHz, UART, DWT sayacı).
+  \item \donanim Emülatör: Arduino Uno + MCP2515 (CAN kütüphanesi, A0 pedal, buton kesmeleri, UART). \textbf{MCP2515 modülündeki kristali kontrol et (genelde 8 MHz) ve kütüphanede aynısını seç; yanlış seçilirse CAN hiç çalışmaz.}
+  \item \donanim Önce her iki düğümü kendi geri döngü (loopback) modunda ayrı ayrı test et (STM32 CAN ve MCP2515'te var; ikinci düğüm olmadan ACK alınamaz), sonra iki düğümü hatta bağla; CAN-H ile CAN-L arası $\approx60$ $\Omega$ ölçülmeli.
+  \kabul{10 dakikada 0 kayıp paket, hata sayaçları TEC = REC = 0}
+  \item \donanim Lojik analizörü transceiver'ın RX pinine (3,3 V tarafı) bağla; PulseView'de CAN çözücüsünü 500 kbps'ye ayarla, 0x101 ve 0x201 çerçevelerini yakala ve tez için ekran görüntüsü al.
+  \kabul{ID, veri baytları ve CRC çözülüyor; hata çerçevesi yok}
+  \item Firmware içi CAN istatistikleri: her düğüm alive counter atlamalarını, CRC hatalarını, TEC/REC değerlerini sayar ve UART'tan PC'ye raporlar (10 dakikalık sıfır kayıp testinin kanıtı).
+  \item \artı Kasıtlı hata üretimi emülatör firmware'inde: buton veya 0x301 komutuyla bozuk CRC, donmuş alive counter ve mesaj kesintisi üret; ECU'nun tepkisini doğrula.
+\end{gorev}
+
+% =====================================================================
+\section{Hafta 5 -- HIL entegrasyonu ve canlı demo (7--13 Aralık)}
+\begin{faz}{Tüm sistem masada, kapalı çevrimde}{demo videosu}
+\end{faz}
+\begin{gorev}
+  \item \donanim Arduino'ya dijital ikizin C portunu yükle; 10 ms'lik periyotta çalıştır. Uno'da \texttt{double} = 32 bit olduğundan yük sayacı tamsayı (mA$\cdot$s) tutulur.
+  \kabul{Kart çıktısı Simulink ile aynı çevrimde örtüşüyor (çapraz doğrulama 3: Python, Simulink ve C)}
+  \item \donanim ECU döngü süresini DWT sayacıyla ölç.
+  \kabul{$<1$ ms (hedef $<200\,\mu$s)}
+  \item \donanim Far sürücüsü: STM32 PWM $\rightarrow$ IRLB8721 $\rightarrow$ 12 V LED şerit (veya setteki LED); gate'e 100 $\Omega$, gate-source arası 10k. Duty $= I_\text{allow}/I_\text{nom}$, alt sınır \%25.
+  \item \donanim Hata enjeksiyonu butonları: soğutma arızası, sensör kopması, CAN kablosunu çekme.
+  \kabul{Her biri doğru duruma geçiyor; CAN çekilince 100 ms içinde SAFE-STOP}
+  \item Canlı izleme paneli: UART (ST-LINK sanal COM) $\rightarrow$ MATLAB \texttt{serialport} veya Python ile SOC, $T$, $\Psi$, durum ve $I_\text{allow}$ grafikleri.
+  \item 2--3 dakikalık demo videosu çek (jüri günü donanım sorununa karşı B planı).
+\end{gorev}
+
+% =====================================================================
+\section{Hafta 6 -- Tez ve savunma (14--20 Aralık)}
+\begin{gorev}
+  \item Tez bölümleri: Giriş ve literatür (5 makale) $\rightarrow$ Modelleme $\rightarrow$ Kestirim ve ML $\rightarrow$ Karar mekanizması $\rightarrow$ CAN ve HIL mimarisi $\rightarrow$ Sonuçlar (KPI tablosu) $\rightarrow$ Sonuç ve gelecek çalışmalar.
+  \item Her KPI için bir grafik veya tablo; Python, Simulink ve C çapraz doğrulama tablosu.
+  \item 10 dakikalık sunum (12--14 slayt) ve canlı demo provası; 30 saniyelik açılış konuşması.
+  \item Olası jüri soruları ve cevapları (ML neden vekil model, emülatör neden sensör seviyesinde, güvenlik nasıl garanti ediliyor).
+\end{gorev}
+
+% =====================================================================
+\section{Başarı ölçütleri (KPI)}
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{X l l}
+\toprule
+Metrik & Hedef & Doğrulama \\
+\midrule
+Simulink ve Python ikizi farkı & $<1$ mV & \texttt{run\_and\_compare} \\
+EKF SOC RMSE & $<\%1.5$ & 6 senaryo, gürültü + kayma \\
+EKF yakınsaması (\%50 $\rightarrow$ \%80) & $<60$ s & Yanlış başlangıç testi \\
+$T_\text{core}$ kestirim hatası & $<1$\,°C & Soğutma arızası senaryosu \\
+ML SOH doğruluğu & RMSE $<\%3.5$ & Leave-one-condition-out (gerçek veri) \\
+C ile MATLAB farkı (SIL) & SOC $<0.05$ puan & PC'de derlenmiş C \\
+ECU döngü süresi & $<1$ ms (hedef 200\,$\mu$s) & DWT sayacı \\
+CAN güvenilirliği & 0 kayıp / 10 dk & Firmware sayaçları + TEC = REC = 0 \\
+CAN zaman aşımı tepkisi & $<100$ ms $\rightarrow$ SAFE-STOP & Kablo çekme testi \\
+Limp-home tabanı & Duty $\ge\%25$ & Isıl stres testi \\
+Derating etkisi & $T_\text{core}<55$\,°C & Kapalı çevrim, derating var/yok \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+% =====================================================================
+\section{Malzeme listesi ve ihtiyaç zamanı}\label{sec:bom}
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{X c l}
+\toprule
+Parça & Adet & Gerektiği hafta \\
+\midrule
+\textbf{Satın alınacak (zorunlu)} -- durum & & \\
+NUCLEO-G431RB (Robotistan, \textbf{sipariş verildi}) & 1 & H4 \\
+TJA1050 CAN modülü, STM32 tarafı (\textbf{sipariş verildi}, 11 Kasım). VCC $\rightarrow$ 5V pini; RX hattına 2,2k/3,3k gerilim bölücü & 1 & H4 \\
+MCP2515 + TJA1050 CAN modülü, Arduino tarafı (Robotistan, \textbf{sipariş verildi}) & 1 & H4 \\
+Far anahtarı: setteki NPN transistör (2N2222) veya mantık seviyeli MOSFET (IRLB8721) & 1 & H5 \\
+Veri taşıyan Micro-USB kablosu (Nucleo için) & 1 & H4 \\
+\midrule
+\textbf{Robotistan Arduino setinden} & & \\
+Arduino Uno R3 (CH340; Windows'ta CH340 sürücüsü gerekir), adaptör, breadboard, jumper kablolar & 1 & H4 \\
+Potansiyometre (pedal), butonlar, dirençler, LED'ler; varsa 16x2 LCD (emülatör göstergesi) & -- & H4 \\
+\midrule
+\textbf{İsteğe bağlı} & & \\
+Kısa 12 V LED şerit (yerine setteki LED'lerle far grubu yapılabilir) & 1 & H5 \\
+
+USB lojik analizör, 24 MHz 8 kanal (PulseView ile CAN/UART/PWM çözme) & 1 & H4 \\
+10k NTC ve 10 W direnç (gerçek ısıtma demosu) & 1 & H5 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+Not: LG 21700 hücreler masada sadece görsel unsur olarak durur; hiçbir test gerçek hücre üzerinde yapılmaz.
+
+% =====================================================================
+\section{Riskler ve B planları}
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{X X}
+\toprule
+Risk & Önlem / B planı \\
+\midrule
+Kartlar geç gelir & H1--H3 ve SIL tamamen kartsız; HIL bir hafta kayabilir \\
+CAN çalışmaz (bit zamanlaması, sonlandırma) & Önce loopback modu; lojik analizörle bit seviyesinde kontrol; 120 $\Omega$ ölçümü (hat üzerinde $\approx60$ $\Omega$) \\
+ML doğruluğu düşük & Ağaç derinliğini artır veya özellik ekle; en kötü durumda kural tabanlı $\Psi$ ile devam (ML bonus olur) \\
+Zaman yetmez & MVP sırası: ikiz $\rightarrow$ EKF $\rightarrow$ karar $\rightarrow$ CAN $\rightarrow$ lamba. \artı görevler en son \\
+Demo günü donanım arızası & Hafta 5 videosu; emülatör yazılımı PC'de de koşabilir \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+% =====================================================================
+\section{Literatür ve modül eşlemesi}
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{l X}
+\toprule
+Makale & Projede kullanıldığı yer \\
+\midrule
+Millner (2010) & Stres faktörlü yaşlanma modeli, rainflow çevrim sayımı (H1) \\
+Pelletier vd. (2017) & Yaşlanma mekanizmaları, takvim ve çevrim ayrımı, paket ölçekleme (H1) \\
+Ananthraj (2021) & BMS fonksiyonları, eşdeğer devre modeli, koruma eşikleri (H1, H3) \\
+Das \& Kumar (2023) & Dolaylı sağlık göstergeleri (iHI), hafif ML yaklaşımı (H2, H3) \\
+Xiong vd. (2019) & Gerçek BMS verisiyle sağlık prognozu, gömülü kısıtlar (H3, H4) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\vspace{6pt}
+\begin{kontrol}
+\begin{tabular}{@{}ll@{}}
+$\boxtimes$ Faz 0: Simulink paketi çalıştı, parçalar sipariş edildi &
+$\boxtimes$ H1: 6 senaryo ve yaşlanma modeli \\
+$\boxtimes$ H2: Kestirim karşılaştırma tablosu &
+$\square$ H3: Kapalı çevrimde derating \\
+$\square$ H4: SIL geçti, CAN 0 kayıp &
+$\square$ H5: Canlı demo ve video \\
+$\square$ H6: Tez teslim, sunum provası & \\
+\end{tabular}
+\end{kontrol}
+
+\end{document}

@@ -1,0 +1,58 @@
+* M50T single-cell analog monitor -- corrected version of BMS_balancer.asc / B2.asc
+* (topology from Andrea, "Battery Management Systems for Large Li-ion Battery Packs", Fig. 5.21)
+* Opens in LTspice (File > Open > .cir) and ngspice (ngspice -b m50t_cell_monitor.cir).
+*
+* One circuit per series group, powered from and referenced to ITS OWN cell:
+*   node 0 = B- of the group, node bp = B+ of the group (2.5-4.2 V). NOT 28 V, NOT a separate 10 V rail.
+* Thresholds (simulated): UV  falls 2.80 V / rises 2.82 V  -> "cell OK" output
+*                         BAL rises 4.10 V / falls 4.06 V  -> bleed resistor ON
+*                         OV  rises 4.21 V / falls 4.18 V  -> over-voltage fault (above the 4.20 V CV end,
+*                                                             below the 4.25 V datasheet protection)
+* Changes vs. the original files:
+*   1. Thresholds re-designed for NMC (LG M50T); the book values 2.50/3.40/3.57 V are for LiFePO4.
+*   2. OV has its OWN divider: with one shared divider the BAL comparator's feedback shifted OV to 4.17 V.
+*   3. Hysteresis (27 Mohm positive feedback): without it the outputs chatter at the threshold.
+*   4. Bleed resistor 10 ohm / 2 W (0.41 A); the 10 kohm in BMS_balancer.asc bleeds only 0.41 mA.
+*   5. Comparators must be micropower and run from one cell (LP339 / TLV3012-class), not LT1001 op-amps
+*      or LT1011 (mA-level quiescent current; drains and unbalances the cells).
+*   6. Resistors 0.1 % (with 1 % the OV threshold spreads by about +/-75 mV).
+* Comparators and reference below are behavioural stand-ins so that the file runs without vendor models.
+
+VCELL bp 0 PWL(0 2.0 10 4.5 20 2.0)
+* divider 1: UV + BAL (~408 k, ~10 uA)
+R1 bp a 226k
+R2 a b 57.6k
+R3 b 0 124k
+* divider 2: OV only (~380 k, ~11 uA)
+RO1 bp c 267k
+RO2 c 0 113k
+* 1.25 V reference (REF3312-class), powered from the cell
+VREF ref 0 1.25
+
+.subckt COMP inp inn out vcc
+B1 x 0 V=V(vcc)*0.5*(1+tanh(5000*(V(inp)-V(inn))))
+Ro x out 1k
+.ends COMP
+
+XUV  a ref uv  bp COMP
+XBAL b ref bal bp COMP
+XOV  c ref ov  bp COMP
+RFUV  uv  a 27Meg
+RFBAL bal b 27Meg
+RFOV  ov  c 27Meg
+
+* passive balancing: 10 ohm 2 W, switched by BAL (ideal switch stand-in for a logic-level MOSFET)
+SBAL bp bleed bal 0 SWBAL
+RBLEED bleed m 10
+VAMM m 0 0
+.model SWBAL SW(Ron=0.05 Roff=1G Vt=1.5 Vh=0.2)
+
+.tran 1m 20
+.meas tran UV_on   FIND V(bp) WHEN V(uv)=1.5 RISE=1
+.meas tran UV_off  FIND V(bp) WHEN V(uv)=1.5 FALL=1
+.meas tran BAL_on  FIND V(bp) WHEN V(bal)=1.5 RISE=1
+.meas tran BAL_off FIND V(bp) WHEN V(bal)=1.5 FALL=1
+.meas tran OV_on   FIND V(bp) WHEN V(ov)=1.5 RISE=1
+.meas tran OV_off  FIND V(bp) WHEN V(ov)=1.5 FALL=1
+.meas tran I_bleed_max MAX I(VAMM)
+.end

@@ -1,0 +1,85 @@
+% Thesis table: cell and pack model parameters with sources.
+% Compile with pdfLaTeX or XeLaTeX; requires booktabs, tabularx, siunitx.
+% Usage in thesis: \input{parametre_tablosu} inside the modelling chapter.
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage{booktabs,tabularx,siunitx,array}
+\usepackage[hidelinks]{hyperref}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\begin{document}
+
+\begin{table}[ht]
+\centering
+\caption{Cell-level parameters of the 19S12P digital twin (LG INR21700 M50T cell) and their sources.}
+\label{tab:cell_params}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{l l l L}
+\toprule
+Parameter & Symbol & Value & Source / derivation \\
+\midrule
+\multicolumn{4}{l}{\textit{Ratings}} \\
+Capacity & $Q$ & \SI{4.85}{Ah} & Datasheet minimum; C/10 BoL mean \SI{4.857}{Ah} in \cite{kirkaldy2024} \\
+Nominal voltage & $V_\text{nom}$ & \SI{3.63}{V} & Datasheet \cite{lgm50ds} \\
+Charge end voltage & $V_\text{max}$ & \SI{4.20}{V} & Datasheet \cite{lgm50ds} \\
+Discharge limit (design) & $V_\text{min}$ & \SI{2.80}{V} & Pack design limit (\SI{53.2}{V}/19); datasheet cut-off \SI{2.5}{V} \\
+Max.\ continuous discharge & $I_\text{dis,max}$ & \SI{7.275}{A} (1.5C) & Datasheet, \SIrange{25}{55}{\celsius}; 0.5C at \SIrange{-20}{10}{\celsius} \cite{lgm50ds} \\
+Max.\ charge current & $I_\text{chg,max}$ & \SI{3.395}{A} (0.7C) & Datasheet, \SIrange{25}{45}{\celsius}; 0.3C below \SI{25}{\celsius} \cite{lgm50ds} \\
+Mass & $m$ & \SI{69}{g} & Datasheet / measured \SI{69.25}{g} \\
+\midrule
+\multicolumn{4}{l}{\textit{Equivalent circuit (2-RC, \SI{25}{\celsius})}} \\
+Ohmic resistance & $R_0$ & \SI{26.4}{m\ohm} & $R_{0.1\,\text{s}}$ at 52\,\% SOC, BoL \cite{kirkaldy2024} \\
+RC branch 1 & $R_1$, $\tau_1$ & \SI{9.3}{m\ohm}, \SI{10}{s} & From $R_{10\,\text{s}}-R_{0.1\,\text{s}} = \SI{6.54}{m\ohm}$ \cite{kirkaldy2024}: $R_1(1-e^{-1}) + R_2(1-e^{-10/\tau_2})$ \\
+RC branch 2 & $R_2$, $\tau_2$ & \SI{12}{m\ohm}, \SI{180}{s} & Assumed slow diffusion branch (to be refined by pulse test) \\
+$R_0$ temperature dependence & $E_{a,R_0}$ & \SI{20}{kJ/mol} & Arrhenius, typical literature value \\
+$R_0$ low-SOC increase & -- & $1+0.6\,e^{-\text{SOC}/0.08}$ & Empirical shape \\
+Open-circuit voltage & $U_\text{OCV}(\text{SOC})$ & 23-point table & Electrode OCP fits for LG M50 \cite{chen2020}, same NMC811\,/\,graphite--SiO$_x$ chemistry as the M50T; $U_\text{OCV}=U_+(y)-U_-(x)$ \\
+\midrule
+\multicolumn{4}{l}{\textit{Thermal (two-node core--surface model \cite{lin2014})}} \\
+Core heat capacity & $C_c$ & \SI{64}{J/K} & $m\,c_p$ with $c_p \approx \SI{1000}{J/(kg\,K)}$, split core/surface \\
+Surface heat capacity & $C_s$ & \SI{5}{J/K} & As above \\
+Core--surface resistance & $R_c$ & \SI{1.8}{K/W} & Scaled from \cite{lin2014} \\
+Surface--ambient resistance & $R_u$ & \SI{9}{K/W} & In-pack natural convection (assumed); $\times 4$ in cooling-fault scenario \\
+\midrule
+\multicolumn{4}{l}{\textit{Pack}} \\
+Configuration & -- & 19S12P & Project specification \\
+Pack capacity / energy & -- & \SI{58.2}{Ah} / \SI{4.01}{kWh} & $12\,Q$; $19 \cdot 12 \cdot Q \cdot V_\text{nom}$ \\
+Pack current limits & -- & \SI{87.3}{A} / \SI{-40.7}{A} & $12 \times$ cell limits \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Aging model parameters (cycle term calibrated on \cite{kirkaldy2024}; calendar term from \cite{schmalstieg2014}).}
+\label{tab:aging_params}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{l l L}
+\toprule
+Parameter & Value & Meaning \\
+\midrule
+$a$, $z$ & 0.00353, 0.531 & Cycle fade $= a\,(\sum_i S_i\,\Delta\mathrm{EFC}_i)^{z}$; $z \approx 0.5$ (diffusion-limited SEI) \\
+$K_\text{ex}$ & 0.429 & DoD stress exponent (Millner \cite{millner2010}: 0.717 for LFP) \\
+$K_\text{soc}$ & 0.052 & Mean-SOC stress (high-SOC effect captured by calendar term) \\
+$K_\text{low}$, $k_\text{Si}$ & 56.5, \SI{0.022}{K^{-1}} & Low-SOC (Si) damage and its temperature sensitivity \\
+$k_c$ & \SI{0.297}{K^{-1}} & Low-temperature (Li plating) stress, weighted by mean SOC \\
+$k_h$ & $\approx 0$ & No measurable high-temperature cycle stress up to \SI{42.3}{\celsius} \\
+Calendar & $\alpha = (7.543\,V - 23.75)\cdot10^{6}\,e^{-6976/T}$ & Fade$_\text{cal} = \alpha\,t_\text{days}^{0.75}$ \cite{schmalstieg2014} (not re-calibrated) \\
+Extrapolation & $\times 2$ per \SI{10}{K} above \SI{42.3}{\celsius} & Millner rule \cite{millner2010}; outside calibration data \\
+\midrule
+Calibration RMSE & 2.52\,\% & Experiments 1, 2, 3, 5 of \cite{kirkaldy2024} \\
+Validation RMSE & 0.80\,\% / 1.69\,\% / 4.68\,\% & Held-out drive-cycle experiment at 25 / 40 / \SI{10}{\celsius} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{thebibliography}{9}
+\bibitem{kirkaldy2024} N.~Kirkaldy, M.~A.~Samieian, G.~J.~Offer, M.~Marinescu, Y.~Patel, ``Lithium-ion battery degradation: Comprehensive cycle ageing data and analysis for commercial 21700 cells,'' \emph{J. Power Sources}, vol.~603, 234185, 2024. Data: doi:10.5281/zenodo.10637534.
+\bibitem{chen2020} C.-H.~Chen, F.~Brosa Planella, K.~O'Regan, D.~Gastol, W.~D.~Widanage, E.~Kendrick, ``Development of experimental techniques for parameterization of multi-scale lithium-ion battery models,'' \emph{J. Electrochem. Soc.}, vol.~167, 080534, 2020.
+\bibitem{millner2010} A.~Millner, ``Modeling lithium ion battery degradation in electric vehicles,'' \emph{IEEE Conf. Innovative Technologies for an Efficient and Reliable Electricity Supply}, 2010.
+\bibitem{schmalstieg2014} J.~Schmalstieg, S.~K\"abitz, M.~Ecker, D.~U.~Sauer, ``A holistic aging model for Li(NiMnCo)O$_2$ based 18650 lithium-ion batteries,'' \emph{J. Power Sources}, vol.~257, pp.~325--334, 2014.
+\bibitem{lin2014} X.~Lin, H.~E.~Perez, S.~Mohan, J.~B.~Siegel, A.~G.~Stefanopoulou, Y.~Ding, M.~P.~Castanier, ``A lumped-parameter electro-thermal model for cylindrical batteries,'' \emph{J. Power Sources}, vol.~257, pp.~1--11, 2014.
+\bibitem{lgm50ds} LG Chem, ``Product specification: Rechargeable lithium ion battery, model INR21700 M50T,'' datasheet, Rev.~0, 2018-07-16.
+\end{thebibliography}
+\end{document}

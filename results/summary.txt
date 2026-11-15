@@ -1,0 +1,13 @@
+Simülasyon süresi: 2494 s, dt = 0.1 s
+Mesafe: 28.68 km
+Tüketilen enerji: 1.526 kWh
+SOC: 80% -> 43.5%
+I_pack min/max: -30.0 / 87.0 A
+V_pack min/max: 65.93 / 76.75 V
+T_core max: 31.38 °C, T_surf max: 30.24 °C
+OCV polinomu R² = 0.99999  katsayılar (yüksek->düşük): [8.5394, -23.9754, 25.1924, -11.9868, 3.1814, 3.2483]
+Paket eşdeğer parametreleri: Q_pack_Ah=60, E_nom_kWh=4.218, R0_pack=0.03483, R1_pack=0.01583, C1_pack=631.6, R2_pack=0.019, C2_pack=9474, V_max=79.8, V_min=53.2, I_max_dis=87.6
+ekf3_noT: rmse_all=0.839, rmse_after60=0.818, maxerr_after60=1.558, t_conv=57.800
+ekf3: rmse_all=0.341, rmse_after60=0.259, maxerr_after60=1.595, t_conv=58.000
+ekf4_bias: rmse_all=0.312, rmse_after60=0.220, maxerr_after60=1.577, t_conv=57.800
+coulomb: final_err=-0.574

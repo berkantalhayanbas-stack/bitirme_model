@@ -1,0 +1,17 @@
+# MATLAB / Simulink önbellek ve otomatik kayıtlar (yeniden üretilir)
+simulink/slprj/
+*.slxc
+*.asv
+*.autosave
+
+# Test betiklerinin ürettiği sonuç dosyaları (büyük, yeniden üretilebilir).
+# Not: aging_model.m girdi olarak senaryo_sonuclari.mat okur -> önce scenarios.m çalıştırılmalı.
+simulink/*_sonuclari.mat
+
+# Kirkaldy et al. (2024) özet verisi (~35 MB): veri/indir_ozet.py ile Zenodo'dan yeniden indirilir
+veri/kirkaldy_ozet/
+veri/kirkaldy_ozet.zip
+
+# Python
+__pycache__/
+*.pyc
