@@ -11,6 +11,8 @@ simulink/*_sonuclari.mat
 # Kirkaldy et al. (2024) özet verisi (~35 MB): veri/indir_ozet.py ile Zenodo'dan yeniden indirilir
 veri/kirkaldy_ozet/
 veri/kirkaldy_ozet.zip
+# Seçilmiş ham dosyalar (GITT eğrileri vb.): veri/indir_ham.py ile yeniden indirilir
+veri/kirkaldy_ham/
 
 # Python
 __pycache__/
