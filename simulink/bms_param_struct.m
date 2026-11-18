@@ -5,7 +5,7 @@ function P = bms_param_struct()
 %   Python referansı: twin/battery_model.py ile birebir aynı değerler.
 %   Kaynaklar (ayrıntı: plan/parametre_tablosu.tex):
 %     veri sayfası: LG INR21700 M50T (Rev 0, 2018-07-16); R0, R1: Kirkaldy vd. (2024) BoL;
-%     OCV: Chen vd. (2020) elektrot OCP'leri (veri/ocv_chen2020.py)
+%     OCV: Kirkaldy vd. (2024) GITT (veri/ocv_gitt.py; önceki Chen vd. 2020)
 
 %#codegen
 P.Ts    = 0.1;          % örnekleme zamanı [s] (STM32'de 10 ms'ye inecek)
@@ -50,17 +50,17 @@ P.th_Q     = [1e-4 1e-4 1e-9];        % g rastgele yürüyüşü: yavaş değiş
 P.th_R     = 0.3^2 + 0.1^2/12;        % NTC gürültüsü + CAN kuantalaması [°C^2]
 P.th_g_min = 0.2 / ru_nom;            % fiziksel alt sınır (g > 0)
 
-% ---- OCV-SOC tablosu: Chen vd. (2020), LG M50 (dijital ikiz kullanır) ----
+% ---- OCV-SOC tablosu: Kirkaldy vd. (2024) LG M50T GITT dinlenme sonu gerilimleri (BoL, 25 °C; veri/ocv_gitt.py, hücre A-D, E-H'de doğrulandı) ----
 P.soc_tab = [0 0.02 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 ...
              0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 0.98 1.00];
-P.ocv_tab = [2.4977 2.8373 3.0726 3.2574 3.3956 3.4487 3.4934 3.5473 3.5959 3.6329 3.6664 3.7051 ...
-             3.7538 3.8055 3.8590 3.9203 3.9671 4.0165 4.0658 4.0927 4.1110 4.1458 4.1809];
+P.ocv_tab = [2.9414 3.0161 3.1444 3.2871 3.4047 3.4646 3.5055 3.5621 3.6086 3.6418 3.6729 3.7119 ...
+             3.7594 3.8136 3.8737 3.9207 3.9641 4.0162 4.0619 4.0873 4.1120 4.1519 4.1845];
 
-% ---- OCV polinomu (EKF kullanır; 7. derece, SOC >= 0.05, R^2 = 0.99963) ----
+% ---- OCV polinomu (EKF kullanır; 7. derece, SOC >= 0.05, tabloya en büyük hata 11,6 mV) ----
 % (Kod üretimi kuralı: yapı okunduktan sonra yeni alan eklenemez,
 %  bu yüzden türev önce yerel değişkenle hesaplanır.)
-ocv_poly    = [103.853146128, -379.901612457, 567.288148072, -450.895141102, ...
-               208.968987223, -57.5219165548, 9.68100441089, 2.70638848517];
+ocv_poly    = [60.3790948991, -208.990896881, 295.06003585, -224.987541467, ...
+               104.426799217, -30.805913718, 6.20417948038, 2.89779228523];
 P.ocv_poly  = ocv_poly;
 P.docv_poly = ocv_poly(1:7) .* [7 6 5 4 3 2 1]; % analitik türev
 
