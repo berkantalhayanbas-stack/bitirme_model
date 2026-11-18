@@ -22,7 +22,8 @@ Durum için yavaş kapasite tahmini (quasi-static SOP), akımdan bağımsız:
   Veri sayfasının sıcaklık sınırı da aynı bantla: < 0.90 · nominal -> neden.
 Sert sınırlar (SAFE-STOP): T_core > 60 °C, V_min < 2.5 V (1 s), V_max > 4.25 V (1 s).
 Histerezis: kısıtlayıcı yöne anında geçilir (güvenlik), gevşetici yöne ancak neden 10 s
-boyunca ortadan kalkınca; sıcaklık terimi 45 °C'de başlar, 43 °C altında sıfırlanır.
+boyunca ortadan kalkınca; sıcaklık terimi 45 °C'de başlar, 43 °C altında sıfırlanır;
+soğutma alarmı R_u > 18 K/W'ta açılır, 15 K/W altında kalkar.
 Sensör arızası bayrakları kalıcıdır (sensor_diag), bu yüzden LIMP-HOME o sürüşte sürer.
 
 Python referansı; Simulink karşılığı: simulink/decision_logic.m (birebir aynı mantık).
@@ -49,6 +50,7 @@ class DecisionParams:
     T_der_on, T_der_off, T_der_full = 45.0, 43.0, 55.0
     psi_cool = 0.3
     ru_alarm = 18.0
+    ru_alarm_off = 15.0     # histerezis: R_u kestirimi eşik çevresinde yakınsarken alarm titriyordu (HIL)
     # gerilim payı (SOP)
     v_lim_dis, v_lim_chg, k_sop = 2.90, 4.18, 0.3
     r_rc = 0.0093 + 0.012          # R1 + R2 [Ohm/hücre] (sürekli akımda kutuplaşma)
@@ -78,6 +80,7 @@ class Decision:
         self.n_lo = 0
         self.n_hi = 0
         self.therm_on = False
+        self.cool_on = False
         self.f_ds = self.f_sop_dis = self.f_sop_chg = False
         p = self.p
         self.I_nom_dis = max(p.I_dis) * p.np_          # 87.3 A
@@ -121,7 +124,11 @@ class Decision:
         elif Tc_hat < p.T_der_off:
             self.therm_on = False
         psi_T = np.clip((Tc_hat - p.T_der_off) / (p.T_der_full - p.T_der_off), 0, 1) if self.therm_on else 0.0
-        psi_C = p.psi_cool if Ru_hat > p.ru_alarm else 0.0
+        if Ru_hat > p.ru_alarm:
+            self.cool_on = True
+        elif Ru_hat < p.ru_alarm_off:
+            self.cool_on = False
+        psi_C = p.psi_cool if self.cool_on else 0.0
         if psi_T > 0: cause |= C_THERM
         if psi_C > 0: cause |= C_COOL
         psi = max(psi_T, psi_C)

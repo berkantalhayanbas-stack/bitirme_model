@@ -7,7 +7,7 @@ function [state, I_allow_dis, I_allow_chg, psi, cause] = decision_logic(I_meas, 
 %
 %   I_allow = rampa( min( I_veri_sayfası(T_surf) * (1 - Ψ),  I_SOP ) )
 %     Ψ = max(Ψ_sıcaklık, Ψ_soğutma): 43→55 °C doğrusal (45 °C'de başlar, 43 altında kalkar);
-%         soğutma alarmı (R_u > 18 K/W) 0.3 önleyici kısıtlama
+%         soğutma alarmı (R_u > 18 K/W'ta açılır, < 15 K/W'ta kalkar) 0.3 önleyici kısıtlama
 %     I_SOP (hızlı, akımı keser) = |I| + k·Np·(V - V_sınır)/R0(T); gerilim eşiği yerine akım sınırı
 %     Durum için yavaş kapasite tahmini: SOP_qs = Np·(V ± |i|R0 - V_sınır)/(R0+R1+R2),
 %         < %90 · veri sayfası sınırı -> neden; ≥ %100 -> kalkar (histerezis bandı)
@@ -24,7 +24,7 @@ if isempty(P)
     P = bms_param_struct();
 end
 if isempty(D)
-    D = struct('state', 1, 'n_ok', 0, 'n_lo', 0, 'n_hi', 0, 'therm_on', false, ...
+    D = struct('state', 1, 'n_ok', 0, 'n_lo', 0, 'n_hi', 0, 'therm_on', false, 'cool_on', false, ...
                'f_ds', false, 'f_sop_dis', false, 'f_sop_chg', false, 'i_dis', 0, 'i_chg', 0);
 end
 ts = P.Ts;  np_ = P.Np;
@@ -58,8 +58,13 @@ psi_T = 0;
 if D.therm_on
     psi_T = min(max((Tc_hat - P.dec_T_der_off) / (P.dec_T_der_full - P.dec_T_der_off), 0), 1);
 end
-psi_C = 0;
 if Ru_hat > P.dec_ru_alarm
+    D.cool_on = true;
+elseif Ru_hat < P.dec_ru_alarm_off
+    D.cool_on = false;
+end
+psi_C = 0;
+if D.cool_on
     psi_C = P.dec_psi_cool;
 end
 psi_s = max(psi_T, psi_C);

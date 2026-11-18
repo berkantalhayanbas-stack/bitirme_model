@@ -114,6 +114,17 @@ k_n = np.argmax(o[200:, 0] == 1) + 200
 check(11, "derate exit delay and ramp", abs((k_n - 200 + 1) * TS - 10.0) < 1e-6 and np.diff(o[:, 1]).max() <= 1.0 + 1e-9,
       f"NORMAL after {(k_n - 200 + 1) * TS:.1f} s (100 samples without cause), max increase {np.diff(o[:, 1]).max() * 10:.1f} A/s")
 
+# U12 soğutma alarmı histerezisi: R_u kestirimi 18 K/W çevresinde dalgalanırken (HIL'de görüldü,
+# yakınsama sırasında) alarm titremez; 15 K/W altına inince kalkar
+ru = np.concatenate([np.linspace(9, 18.5, 300), 18 + 1.2 * np.sin(np.arange(1500) * 0.05)
+                     + 0.2 * rng.standard_normal(1500), np.linspace(18, 9, 300), np.full(200, 9.0)])
+o = run(12, seq(len(ru), Ru_hat=ru))
+cool = (o[:, 4].astype(int) & 2) > 0
+tr = int(np.sum(np.diff(cool.astype(int)) != 0))
+k_off = np.argmax(~cool[1800:]) + 1800
+check(12, "cooling alarm hysteresis (no chatter)", tr == 2 and cool[1799] and ru[k_off] < 15.0 and ru[k_off - 1] >= 15.0,
+      f"{tr} alarm transitions; on at R_u = {ru[np.argmax(cool)]:.2f}, off at R_u = {ru[k_off]:.2f} K/W")
+
 V = pd.DataFrame(rows)
 V.to_csv(os.path.join(HERE, "..", "simulink", "decision_vectors.csv"), index=False)
 n_ok = sum(r[2] for r in results)
