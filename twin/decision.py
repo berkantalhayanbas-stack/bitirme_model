@@ -23,7 +23,8 @@ Durum için yavaş kapasite tahmini (quasi-static SOP), akımdan bağımsız:
 Sert sınırlar (SAFE-STOP): T_core > 60 °C, V_min < 2.5 V (1 s), V_max > 4.25 V (1 s).
 Histerezis: kısıtlayıcı yöne anında geçilir (güvenlik), gevşetici yöne ancak neden 10 s
 boyunca ortadan kalkınca; sıcaklık terimi 45 °C'de başlar, 43 °C altında sıfırlanır;
-soğutma alarmı R_u > 18 K/W'ta açılır, 15 K/W altında kalkar.
+soğutma alarmı R_u > 18 K/W'ta açılır, 15 K/W altında kalkar; açılıştan sonraki ilk 120 s alarm
+yok (gözlemci yakınsaması).
 Sensör arızası bayrakları kalıcıdır (sensor_diag), bu yüzden LIMP-HOME o sürüşte sürer.
 
 Python referansı; Simulink karşılığı: simulink/decision_logic.m (birebir aynı mantık).
@@ -51,6 +52,8 @@ class DecisionParams:
     psi_cool = 0.3
     ru_alarm = 18.0
     ru_alarm_off = 15.0     # histerezis: R_u kestirimi eşik çevresinde yakınsarken alarm titriyordu (HIL)
+    t_cool_blank = 120.0    # açılıştan sonra soğutma alarmı yok: gözlemci sıcak/yüklü pakette başlarsa
+                            # R_u kestirimi geçici olarak > 30 K/W (HIL'de bulundu, U13)
     # gerilim payı (SOP)
     v_lim_dis, v_lim_chg, k_sop = 2.90, 4.18, 0.3
     r_rc = 0.0093 + 0.012          # R1 + R2 [Ohm/hücre] (sürekli akımda kutuplaşma)
@@ -81,6 +84,7 @@ class Decision:
         self.n_hi = 0
         self.therm_on = False
         self.cool_on = False
+        self.n_run = 0             # açılıştan beri örnek
         self.f_ds = self.f_sop_dis = self.f_sop_chg = False
         p = self.p
         self.I_nom_dis = max(p.I_dis) * p.np_          # 87.3 A
@@ -124,7 +128,12 @@ class Decision:
         elif Tc_hat < p.T_der_off:
             self.therm_on = False
         psi_T = np.clip((Tc_hat - p.T_der_off) / (p.T_der_full - p.T_der_off), 0, 1) if self.therm_on else 0.0
-        if Ru_hat > p.ru_alarm:
+        n_blank = round(p.t_cool_blank / p.ts)
+        if self.n_run < n_blank:
+            self.n_run += 1
+        if self.n_run < n_blank:
+            self.cool_on = False
+        elif Ru_hat > p.ru_alarm:
             self.cool_on = True
         elif Ru_hat < p.ru_alarm_off:
             self.cool_on = False

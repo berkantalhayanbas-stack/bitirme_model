@@ -101,18 +101,19 @@ o = run(9, seq(300, Tc_hat=6.0, Ts_hat=5.0))
 check(9, "cold-cell datasheet limits", abs(o[-1, 1] - 29.1) < 1e-6 and abs(o[-1, 2] - 17.46) < 1e-6 and o[-1, 0] == 2,
       f"I_allow dis {o[-1, 1]:.2f} A (0.5C), chg {o[-1, 2]:.2f} A (0.3C)")
 
-# U10 soğutma alarmı -> Ψ = 0.3 önleyici derating (sıcaklık yükselmeden)
-ru = np.full(300, 9.0); ru[100:] = 25.0
-o = run(10, seq(300, Ru_hat=ru))
-check(10, "cooling alarm -> pre-emptive derate", o[-1, 0] == 2 and abs(o[-1, 1] - 0.7 * 87.3) < 1e-6,
-      f"I_allow {o[-1, 1]:.2f} A (70 %)")
+# U10 soğutma alarmı -> Ψ = 0.3 önleyici derating (sıcaklık yükselmeden); açılış beklemesi (120 s) sonrası
+ru = np.full(1500, 9.0); ru[1300:] = 25.0
+o = run(10, seq(1500, Ru_hat=ru))
+check(10, "cooling alarm -> pre-emptive derate", o[1299, 0] == 1 and (int(o[1300, 4]) & 2) and o[-1, 0] == 2
+      and abs(o[-1, 1] - 0.7 * 87.3) < 1e-6, f"I_allow {o[-1, 1]:.2f} A (70 %)")
 
 # U11 derate'den çıkış: neden kalkınca 10 s bekler, sonra en fazla 10 A/s ile artar
-ru = np.full(500, 25.0); ru[200:] = 9.0
-o = run(11, seq(500, Ru_hat=ru))
-k_n = np.argmax(o[200:, 0] == 1) + 200
-check(11, "derate exit delay and ramp", abs((k_n - 200 + 1) * TS - 10.0) < 1e-6 and np.diff(o[:, 1]).max() <= 1.0 + 1e-9,
-      f"NORMAL after {(k_n - 200 + 1) * TS:.1f} s (100 samples without cause), max increase {np.diff(o[:, 1]).max() * 10:.1f} A/s")
+ru = np.full(1700, 25.0); ru[1400:] = 9.0
+o = run(11, seq(1700, Ru_hat=ru))
+k_n = np.argmax(o[1400:, 0] == 1) + 1400
+check(11, "derate exit delay and ramp", o[1399, 0] == 2 and abs((k_n - 1400 + 1) * TS - 10.0) < 1e-6
+      and np.diff(o[:, 1]).max() <= 1.0 + 1e-9,
+      f"NORMAL after {(k_n - 1400 + 1) * TS:.1f} s (100 samples without cause), max increase {np.diff(o[:, 1]).max() * 10:.1f} A/s")
 
 # U12 soğutma alarmı histerezisi: R_u kestirimi 18 K/W çevresinde dalgalanırken (HIL'de görüldü,
 # yakınsama sırasında) alarm titremez; 15 K/W altına inince kalkar
@@ -124,6 +125,16 @@ tr = int(np.sum(np.diff(cool.astype(int)) != 0))
 k_off = np.argmax(~cool[1800:]) + 1800
 check(12, "cooling alarm hysteresis (no chatter)", tr == 2 and cool[1799] and ru[k_off] < 15.0 and ru[k_off - 1] >= 15.0,
       f"{tr} alarm transitions; on at R_u = {ru[np.argmax(cool)]:.2f}, off at R_u = {ru[k_off]:.2f} K/W")
+
+# U13 açılış beklemesi: gözlemci sıcak/yüklü pakette başlayınca R_u kestirimi geçici olarak fırlar
+# (HIL'de bulundu; Python taramasında sağlam soğutmada 32 başlangıcın 21'inde sahte alarm, sonuncusu
+# < 60 s). İlk 120 s alarm yok; gerçek arıza sonrasında yine yakalanır.
+ru = np.concatenate([9 + 22 * np.exp(-np.arange(900) / 150.0) * (1 + 0.3 * np.sin(np.arange(900) * 0.1)),
+                     np.full(600, 9.0), np.full(600, 36.0)])
+o = run(13, seq(len(ru), Ru_hat=ru))
+cool = (o[:, 4].astype(int) & 2) > 0
+check(13, "start-up blanking of cooling alarm", not cool[:1500].any() and cool[1500:].any() and ru[:300].max() > 25,
+      f"start transient R_u up to {ru[:900].max():.1f} K/W -> no alarm; real fault (36 K/W) at t = 150 s -> alarm")
 
 V = pd.DataFrame(rows)
 V.to_csv(os.path.join(HERE, "..", "simulink", "decision_vectors.csv"), index=False)

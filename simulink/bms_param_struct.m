@@ -96,6 +96,7 @@ P.dec_T_der_full = 55;
 P.dec_psi_cool   = 0.3;   % soğutma alarmında önleyici kısıtlama
 P.dec_ru_alarm   = 18;    % [K/W] 2 x nominal R_u
 P.dec_ru_alarm_off = 15;  % [K/W] altına inince kalkar (histerezis)
+P.dec_t_cool_blank = 120; % [s] açılıştan sonra soğutma alarmı yok (gözlemci yakınsaması)
 P.dec_v_lim_dis  = 2.90;  % [V] gerilim payı sınırları (SOP), tasarım sınırı 2.8 V'un üstünde
 P.dec_v_lim_chg  = 4.18;
 P.dec_k_sop      = 0.3;   % SOP geri besleme kazancı
