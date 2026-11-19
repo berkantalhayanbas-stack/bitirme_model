@@ -21,8 +21,12 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
    [ ] **Yeni (A1'den):** sıcak + soğutması arızalı pakette yeniden başlatma sonrası ısıl gözlemci
        sapıyor (Tc^ ölçümün 7 °C altına); nedeni büyük olasılıkla SOC EKF'nin 0,5'ten başlaması
        (ısı girdisi OCV(SOC^) - V yanlış). SOC'yi açılışta dinlenme OCV'sinden başlatmayı incele.
-2. [ ] **Ea:** galvani paketi + Kirkaldy ham .mpr (10/25/40 °C, ~170 MB) -> akım basamaklarından
-       R(T) -> Ea uydurma; O'Regan 2022 ile karşılaştırma.
+2. [x] **Ea, 19 Kasım:** Kirkaldy Expt 5 Set 1 ham .mpr (8 hücre, 15/27/40 °C, ~500 MB, git dışı),
+       CV -> 5 A basamağı: R0 (0,05 s) 6,2 ± 0,3, R1 (10 s polarizasyon) 17,5 ± 0,8, R2 (30 s)
+       14,3 ± 0,5 kJ/mol (veri/ea_kirkaldy.py). Eski varsayım: yalnız R0'a 20 kJ/mol. Dört modele
+       uygulandı, tüm testler geçti. O'Regan 2022 tam metni erişilemedi (özet: kinetik Ea'lar
+       ~60 kJ/mol'e kadar, nitel olarak uyumlu); tezde tam metinden sayı alınmalı.
+   [ ] **Kart:** twin_emu'yu (yeni Ea) Uno'ya yükle, butonlar.txt'yi tekrar koştur.
 3. [ ] **Duyarlılık analizi:** R_u, sensör gürültüsü, grup farkı, R2/τ2 ±%50 -> SOC hatası ve
        kararlar ne kadar değişiyor (tez tablosu).
 4. [ ] **SOC farkı 0,75-1,0 puan** (kartta): 19 grup / tek ortalama mı, başka bir şey mi, incele.
