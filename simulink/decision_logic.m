@@ -1,4 +1,4 @@
-function [state, I_allow_dis, I_allow_chg, psi, cause] = decision_logic(I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est, T_valid, I_valid, CAN_ok)
+function [state, I_allow_dis, I_allow_chg, psi, cause] = decision_logic(I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est, T_valid, I_valid, CAN_ok, T_meas, T_amb)
 %DECISION_LOGIC  Güvenli karar mekanizması (Hedef 4): 4 durumlu makine + izin verilen akım.
 %   Durumlar: 1 NORMAL, 2 DERATE, 3 LIMP-HOME, 4 SAFE-STOP (kilitlenir; çıkış: clear decision_logic)
 %   Çıkışlar: I_allow_dis / I_allow_chg (pozitif büyüklük, A), psi = 1 - I_allow_dis/I_nom,
@@ -14,6 +14,8 @@ function [state, I_allow_dis, I_allow_chg, psi, cause] = decision_logic(I_meas, 
 %   LIMP-HOME (sensör arızası, |b_I| > 5 A, T_core > 55 °C, SOC < %3): taban %25, ama gerilim
 %     payını ve veri sayfası sınırını asla aşmaz.
 %   SAFE-STOP: T_core > 60 °C, V_min < 2.5 V (1 s), V_max > 4.25 V (1 s), CAN kesintisi.
+%   Ölçüme bağlı çekirdek sınırı: T_ss = T_meas + Rc/Ru (T_meas - T_amb) > 55 / 60 °C (1 s)
+%     -> LIMP-HOME / SAFE-STOP (gözlemcinin göremediği modellenmemiş ısı; sensör geçerliyse).
 %   Kısıtlayıcı yöne anında, gevşetici yöne neden 10 s yokken geçilir; düşüşler anında, artışlar
 %   en fazla 10 A/s; açılışta I_allow = 0'dan başlar.
 %   Python referansı: twin/decision.py (birebir aynı mantık; test_decision.m doğrular)
@@ -24,7 +26,7 @@ if isempty(P)
     P = bms_param_struct();
 end
 if isempty(D)
-    D = struct('state', 1, 'n_ok', 0, 'n_lo', 0, 'n_hi', 0, 'therm_on', false, 'cool_on', false, 'n_run', 0, ...
+    D = struct('state', 1, 'n_ok', 0, 'n_lo', 0, 'n_hi', 0, 'therm_on', false, 'cool_on', false, 'n_run', 0, 'n_hl', 0, 'n_hs', 0, ...
                'f_ds', false, 'f_sop_dis', false, 'f_sop_chg', false, 'i_dis', 0, 'i_chg', 0);
 end
 ts = P.Ts;  np_ = P.Np;
@@ -36,7 +38,14 @@ I_nom_chg = max(P.dec_I_chg) * np_;
 n_hard = round(P.dec_t_hard / ts);
 if V_min < P.dec_v_safe_lo, D.n_lo = D.n_lo + 1; else, D.n_lo = 0; end
 if V_max > P.dec_v_safe_hi, D.n_hi = D.n_hi + 1; else, D.n_hi = 0; end
-hard = Tc_hat > P.dec_T_safe || D.n_lo >= n_hard || D.n_hi >= n_hard || CAN_ok < 0.5;
+if T_valid >= 0.5
+    t_ss = T_meas + P.dec_k_ss * (T_meas - T_amb);
+    if t_ss > P.dec_T_limp, D.n_hl = D.n_hl + 1; else, D.n_hl = 0; end
+    if t_ss > P.dec_T_safe, D.n_hs = D.n_hs + 1; else, D.n_hs = 0; end
+else
+    D.n_hl = 0;  D.n_hs = 0;
+end
+hard = Tc_hat > P.dec_T_safe || D.n_hs >= n_hard || D.n_lo >= n_hard || D.n_hi >= n_hard || CAN_ok < 0.5;
 if hard || D.state == 4
     D.state = 4;  D.i_dis = 0;  D.i_chg = 0;
     state = 4;  I_allow_dis = 0;  I_allow_chg = 0;  psi = 1;  cause = 128;
@@ -90,13 +99,14 @@ tgt_chg = max(0, min(i_ds_chg * (1 - psi_s), sop_chg));
 % ---------------------------------------------------- LIMP-HOME
 sensor_bad = T_valid < 0.5 || I_valid < 0.5 || abs(bias_est) > P.dec_bias_max;
 empty = SOC_est < P.dec_soc_empty;
-limp = sensor_bad || Tc_hat > P.dec_T_limp || empty;
+hot_ss = D.n_hl >= n_hard;
+limp = sensor_bad || Tc_hat > P.dec_T_limp || hot_ss || empty;
 if limp
     tgt_dis = min([P.dec_floor * I_nom_dis, i_ds_dis, max(sop_dis, 0)]);
     tgt_chg = min(tgt_chg, P.dec_floor * I_nom_chg);
 end
 
-cause = 1*(psi_T > 0) + 2*(psi_C > 0) + 4*D.f_sop_dis + 8*D.f_sop_chg + 16*D.f_ds ...
+cause = 1*(psi_T > 0 || hot_ss) + 2*(psi_C > 0) + 4*D.f_sop_dis + 8*D.f_sop_chg + 16*D.f_ds ...
       + 32*sensor_bad + 64*empty;
 
 % ---------------------------------------------------- durum + histerezis

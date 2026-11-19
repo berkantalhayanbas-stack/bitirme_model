@@ -1,6 +1,6 @@
 %TEST_DECISION  3. hafta: güvenli karar mekanizmasının testi (FMEA test matrisi).
 %   A) Birim test vektörleri: twin/test_decision_unit.py'nin ürettiği girdiler (decision_vectors.csv)
-%      decision_logic.m'ye verilir; çıktılar Python ile BİREBİR aynı olmalı (12 birim test).
+%      decision_logic.m'ye verilir; çıktılar Python ile BİREBİR aynı olmalı (15 birim test).
 %   B) Kapalı çevrim (Simulink, Dec_on = 1), karar mekanizması yok/var karşılaştırmalı:
 %      S1 normal sürüş                            -> yanlış kısıtlama yok
 %      S2 40 °C + soğutma arızası + agresif sürüş -> T_core < 55 °C (mekanizmasız aşıyor)
@@ -19,7 +19,7 @@ out = zeros(n, 5);
 for k = 1:n
     if V.reset(k), clear decision_logic; end
     [s, a, b, p, c] = decision_logic(V.I_meas(k), V.V_min(k), V.V_max(k), V.Tc_hat(k), V.Ts_hat(k), ...
-        V.Ru_hat(k), V.SOC_est(k), V.bias_est(k), V.T_valid(k), V.I_valid(k), V.CAN_ok(k));
+        V.Ru_hat(k), V.SOC_est(k), V.bias_est(k), V.T_valid(k), V.I_valid(k), V.CAN_ok(k), V.T_meas(k), V.T_amb(k));
     out(k, :) = [s a b p c];
 end
 clear decision_logic

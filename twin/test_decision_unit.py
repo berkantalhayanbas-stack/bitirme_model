@@ -14,9 +14,9 @@ from decision import Decision, NAMES
 HERE = os.path.dirname(os.path.abspath(__file__))
 TS = 0.1
 COLS = ["I_meas", "V_min", "V_max", "Tc_hat", "Ts_hat", "Ru_hat", "SOC_est", "bias_est",
-        "T_valid", "I_valid", "CAN_ok"]
+        "T_valid", "I_valid", "CAN_ok", "T_meas", "T_amb"]
 BASE = dict(I_meas=20.0, V_min=3.65, V_max=3.70, Tc_hat=30.0, Ts_hat=29.0, Ru_hat=9.0,
-            SOC_est=0.6, bias_est=0.5, T_valid=1, I_valid=1, CAN_ok=1)
+            SOC_est=0.6, bias_est=0.5, T_valid=1, I_valid=1, CAN_ok=1, T_meas=29.0, T_amb=25.0)
 rows, results = [], []
 
 
@@ -135,6 +135,25 @@ o = run(13, seq(len(ru), Ru_hat=ru))
 cool = (o[:, 4].astype(int) & 2) > 0
 check(13, "start-up blanking of cooling alarm", not cool[:1500].any() and cool[1500:].any() and ru[:300].max() > 25,
       f"start transient R_u up to {ru[:900].max():.1f} K/W -> no alarm; real fault (36 K/W) at t = 150 s -> alarm")
+
+# U14 ölçüme bağlı çekirdek sınırı (A1, HIL 3. bulgu): gözlemci modellenmemiş ısıyı görmez
+# (Tc_hat 30 °C'de kalır); yüzey ölçümü 0,5 °C/s yükselir. T_ss = Tm + 0,2 (Tm - 25) > 55 °C
+# -> LIMP (neden 1), > 60 °C -> SAFE; 1 s süre filtresi: 0,5 s'lik sıçrama tetiklemez; sensör
+# geçersizse (T_valid = 0) ölçüm kullanılmaz.
+tm = np.concatenate([np.full(100, 29.0), np.linspace(29, 62, 660)])
+tm_s = np.full(300, 29.0); tm_s[100:105] = 70.0
+o = run(14, seq(len(tm), T_meas=tm))
+k_l, k_s = np.argmax(o[:, 0] == 3), np.argmax(o[:, 0] == 4)
+tss = tm + 0.2 * (tm - 25)
+o2 = run(14, seq(300, T_meas=tm_s))
+tv = np.ones(300); tv[50:] = 0
+tm3 = np.full(300, 29.0); tm3[50:] = 70.0
+o3 = run(14, seq(300, T_meas=tm3, T_valid=tv))
+check(14, "measurement-anchored core limit",
+      tss[k_l - 9] > 55 and tss[k_l - 10] <= 55 and (int(o[k_l, 4]) & 1) and tss[k_s - 9] > 60
+      and tss[k_s - 10] <= 60 and (o2[:, 0] != 4).all() and (o2[:, 0] != 3).all() and (o3[:, 0] != 4).all(),
+      f"LIMP at T_meas {tm[k_l]:.1f} °C (T_ss {tss[k_l]:.1f}), SAFE at T_meas {tm[k_s]:.1f} °C "
+      f"(T_ss {tss[k_s]:.1f}), Tc_hat 30 °C; 0.5 s spike and invalid sensor ignored")
 
 V = pd.DataFrame(rows)
 V.to_csv(os.path.join(HERE, "..", "simulink", "decision_vectors.csv"), index=False)

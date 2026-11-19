@@ -21,6 +21,8 @@ Durum için yavaş kapasite tahmini (quasi-static SOP), akımdan bağımsız:
   SOP_qs < 0.90 · veri sayfası sınırı -> neden aktif; ≥ 1.00 olunca kalkar (histerezis bandı).
   Veri sayfasının sıcaklık sınırı da aynı bantla: < 0.90 · nominal -> neden.
 Sert sınırlar (SAFE-STOP): T_core > 60 °C, V_min < 2.5 V (1 s), V_max > 4.25 V (1 s).
+Ölçüme bağlı çekirdek sınırı: T_ss = T_ölç + Rc/Ru (T_ölç - T_ortam) > 55 / 60 °C (1 s) de
+LIMP-HOME / SAFE-STOP verir (gözlemcinin göremediği, modellenmemiş ısıya karşı).
 Histerezis: kısıtlayıcı yöne anında geçilir (güvenlik), gevşetici yöne ancak neden 10 s
 boyunca ortadan kalkınca; sıcaklık terimi 45 °C'de başlar, 43 °C altında sıfırlanır;
 soğutma alarmı R_u > 18 K/W'ta açılır, 15 K/W altında kalkar; açılıştan sonraki ilk 120 s alarm
@@ -61,6 +63,11 @@ class DecisionParams:
     # LIMP-HOME ve sert sınırlar
     floor_frac = 0.25
     T_limp, T_safe = 55.0, 60.0
+    # ölçüme bağlı çekirdek sınırı (A1, HIL 3. bulgu): kararlı halde Tc - Ts = Rc/Ru (Ts - Ta);
+    # ısının kaynağından bağımsız. Gözlemci modellenmemiş ısıyı (dış kaynak, iç kısa devre
+    # başlangıcı) göremediği için LIMP/SAFE ayrıca T_ss = Tm + k_ss (Tm - Ta) ile verilir (1 s süre
+    # filtresi, gürültü). Nominal Ru: soğutma arızasında (Ru büyür) sınır tutucu kalır.
+    k_ss = 1.8 / 9.0                      # Rc / Ru_nom
     soc_empty = 0.03
     v_safe_lo, v_safe_hi, t_hard = 2.50, 4.25, 1.0
     bias_max = 5.0
@@ -85,6 +92,7 @@ class Decision:
         self.therm_on = False
         self.cool_on = False
         self.n_run = 0             # açılıştan beri örnek
+        self.n_hl = self.n_hs = 0  # ölçüme bağlı çekirdek sınırı: LIMP / SAFE süre sayaçları
         self.f_ds = self.f_sop_dis = self.f_sop_chg = False
         p = self.p
         self.I_nom_dis = max(p.I_dis) * p.np_          # 87.3 A
@@ -101,14 +109,21 @@ class Decision:
         return flag
 
     def step(self, I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est,
-             T_valid=1, I_valid=1, CAN_ok=1):
+             T_valid=1, I_valid=1, CAN_ok=1, T_meas=None, T_amb=None):
         p = self.p
         cause = 0
         # ---------------------------------------------------- sert sınırlar (kilitlenir)
         n_hard = round(p.t_hard / p.ts)
         self.n_lo = self.n_lo + 1 if V_min < p.v_safe_lo else 0
         self.n_hi = self.n_hi + 1 if V_max > p.v_safe_hi else 0
-        hard = (Tc_hat > p.T_safe or self.n_lo >= n_hard or self.n_hi >= n_hard or CAN_ok < 0.5)
+        if T_meas is not None and T_valid >= 0.5:
+            t_ss = T_meas + p.k_ss * (T_meas - T_amb)
+            self.n_hl = self.n_hl + 1 if t_ss > p.T_limp else 0
+            self.n_hs = self.n_hs + 1 if t_ss > p.T_safe else 0
+        else:
+            self.n_hl = self.n_hs = 0
+        hard = (Tc_hat > p.T_safe or self.n_hs >= n_hard or self.n_lo >= n_hard or self.n_hi >= n_hard
+                or CAN_ok < 0.5)
         if hard or self.state == SAFE:
             self.state = SAFE
             self.i_dis = self.i_chg = 0.0
@@ -164,7 +179,9 @@ class Decision:
         sensor_bad = T_valid < 0.5 or I_valid < 0.5 or abs(bias_est) > p.bias_max
         if sensor_bad: cause |= C_SENSOR
         if SOC_est < p.soc_empty: cause |= C_EMPTY
-        limp = sensor_bad or Tc_hat > p.T_limp or SOC_est < p.soc_empty
+        hot_ss = self.n_hl >= n_hard
+        if hot_ss: cause |= C_THERM
+        limp = sensor_bad or Tc_hat > p.T_limp or hot_ss or SOC_est < p.soc_empty
         if limp:
             # taban akım: Ψ kısıtlamasının yerine geçer ama gerilim payını (SOP) ve
             # veri sayfası sınırını asla aşmaz (boş batarya tabandan önce gelir)

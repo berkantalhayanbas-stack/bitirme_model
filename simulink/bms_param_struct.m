@@ -106,6 +106,7 @@ P.dec_band_off   = 1.00;
 P.dec_floor      = 0.25;  % LIMP-HOME taban akımı (nominalin %25'i, lamba asla sönmez)
 P.dec_T_limp     = 55;    % [°C]
 P.dec_T_safe     = 60;    % [°C] SAFE-STOP
+P.dec_k_ss       = 1.8 / 9;   % Rc / Ru_nom: ölçüme bağlı çekirdek sınırı T_ss = Tm + k (Tm - Ta)
 P.dec_soc_empty  = 0.03;
 P.dec_v_safe_lo  = 2.50;  % [V] veri sayfası kesme gerilimi, 1 s süre filtresi
 P.dec_v_safe_hi  = 4.25;  % [V] veri sayfası aşırı gerilim koruması
