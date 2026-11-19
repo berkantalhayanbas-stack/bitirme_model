@@ -46,7 +46,7 @@ def run(I_dem, T_amb=25.0, ru_factor=1.0, soc0=0.8, weak=False, use_decision=Tru
     wk = PackTwin(replace(cell, capacity_ah=base.capacity_ah * 0.9, r0=base.r0 * 1.2,
                           r1=base.r1 * 1.2, r2=base.r2 * 1.2),
                   PackConfig(t_amb=T_amb), soc0=soc0) if weak else None
-    ekf = PackEKF(PEQ, COEF, 19, DT, soc0=0.5)
+    ekf = PackEKF(PEQ, COEF, 19, DT, soc0=0.5, estimate_r=True)
     th = None
     diag = SensorDiag()
     dec = Decision()

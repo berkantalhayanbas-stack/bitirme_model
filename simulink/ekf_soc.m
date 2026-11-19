@@ -1,6 +1,7 @@
 function [SOC_est, bias_est, innov, rejected] = ekf_soc(I_meas, V_meas, T_meas, T_valid, Ts_hat_prev, Gate_on, Q_scale, R_scale)
-%EKF_SOC  Paket seviyesi 4 durumlu Genişletilmiş Kalman Filtresi.
-%   x = [SOC; V1; V2; b_I]   (b_I: akım sensörü kayması)
+%EKF_SOC  Paket seviyesi 5 durumlu Genişletilmiş Kalman Filtresi.
+%   x = [SOC; V1; V2; b_I; k_R]   (b_I: akım sensörü kayması, k_R: gerçek R0 / nominal R0)
+%   k_R olmadan R0 uyumsuzluğu (yaşlanma) b_I'ya yükleniyor, sahte sensör arızası veriyordu (A7).
 %   Girdiler CAN 0x101 çözünürlüğünde: V 0.1 V, I 0.1 A, T 0.1 °C.
 %   R0(T) düzeltmesi ölçülen yüzey sıcaklığıyla yapılır; sıcaklık sensörü
 %   geçersizse (T_valid = 0) gözlemcinin bir önceki yüzey kestirimi kullanılır.
@@ -18,7 +19,7 @@ if isempty(P)
     P = bms_param_struct();
 end
 if isempty(x)
-    x = [P.soc0_ekf; 0; 0; 0];
+    x = [P.soc0_ekf; 0; 0; 0; 1];
 end
 if isempty(Pk)
     Pk = diag(P.ekf_P0);
@@ -47,6 +48,7 @@ R2 = R2 * exp(P.ea_r2 / P.Rgas * (1/(T_use + 273.15) - 1/298.15));
 a1 = exp(-dt / (R1 * C1));
 a2 = exp(-dt / (R2 * C2));
 
+kr = x(5);
 i  = I_meas - x(4);
 kc = dt / (3600 * Qah);
 
@@ -56,18 +58,19 @@ xp(1) = x(1) - kc * i;
 xp(2) = a1 * x(2) + R1 * (1 - a1) * i;
 xp(3) = a2 * x(3) + R2 * (1 - a2) * i;
 
-A = [1  0  0   kc;
-     0  a1 0  -R1*(1-a1);
-     0  0  a2 -R2*(1-a2);
-     0  0  0   1];
+A = [1  0  0   kc         0;
+     0  a1 0  -R1*(1-a1)  0;
+     0  0  a2 -R2*(1-a2)  0;
+     0  0  0   1          0;
+     0  0  0   0          1];
 Pp = A * Pk * A' + Qn;
 
 % ---- Düzeltme (a posteriori) ----
 s     = min(max(xp(1), 0), 1);
 ocv   = P.Ns * polyval(P.ocv_poly,  s);
 docv  = P.Ns * polyval(P.docv_poly, s);
-y_hat = ocv - R0 * i - xp(2) - xp(3);
-C     = [docv, -1, -1, R0];
+y_hat = ocv - kr * R0 * i - xp(2) - xp(3);
+C     = [docv, -1, -1, kr * R0, -R0 * i];
 
 S     = C * Pp * C' + P.ekf_R;
 K     = Pp * C' / S;
@@ -82,7 +85,8 @@ if rej
 else
     n_rej = 0;
     x     = xp + K * innov;
-    IKC   = eye(4) - K * C;
+    x(5)  = min(max(x(5), P.ekf_kr_min), P.ekf_kr_max);
+    IKC   = eye(5) - K * C;
     Pk    = IKC * Pp * IKC' + P.ekf_R * (K * K');   % Joseph formu
 end
 rejected = double(rej);

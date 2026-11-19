@@ -1,6 +1,6 @@
 function [T_valid, I_valid] = sensor_diag(I_meas, T_meas, Diag_on)
 %SENSOR_DIAG  Sensör teşhisi (makullük kontrolleri), CAN 0x101 değerleri üzerinde.
-%   Sıcaklık: aralık (-30..85 °C), değişim hızı (> 2 °C/örnek) ve donma
+%   Sıcaklık: aralık (-30..85 °C), değişim hızı (hızlı süzgeçten > 2 °C fark, 3 örnek üst üste) ve donma
 %   (5 s boyunca aynı değer) kontrolü. Akım: donma kontrolü.
 %   Bayraklar kalıcıdır (latched): geçersiz sensör bu sürüşte tekrar güvenilir sayılmaz.
 %   Akım ofset kayması burada değil, SOC EKF'sinin kayma durumunda kestirilir;
@@ -15,15 +15,19 @@ if isempty(P)
 end
 if isempty(D)
     D = struct('first', true, 't_prev', 0, 'i_prev', 0, 'n_t', 0, 'n_i', 0, ...
-               'tv', true, 'iv', true);
+               'tv', true, 'iv', true, 't_lp', 0, 'n_rate', 0);
 end
 
 if ~D.first
     if T_meas == D.t_prev, D.n_t = D.n_t + 1; else, D.n_t = 0; end
     if I_meas == D.i_prev, D.n_i = D.n_i + 1; else, D.n_i = 0; end
-    if abs(T_meas - D.t_prev) > P.diag_T_rate
+    if abs(T_meas - D.t_lp) > P.diag_T_rate, D.n_rate = D.n_rate + 1; else, D.n_rate = 0; end
+    if D.n_rate >= P.diag_n_rate
         D.tv = false;
     end
+    D.t_lp = D.t_lp + P.diag_T_alpha * (T_meas - D.t_lp);
+else
+    D.t_lp = T_meas;
 end
 if T_meas < P.diag_T_min || T_meas > P.diag_T_max || D.n_t >= P.diag_n_frozen
     D.tv = false;

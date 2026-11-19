@@ -71,8 +71,9 @@ P.soc0      = 0.80;     % gerçek SOC
 P.soc0_ekf  = 0.50;     % EKF'ye bilerek yanlış başlangıç
 
 % ---- EKF ayarları (x = [SOC V1 V2 b_I]) ----
-P.ekf_P0 = [0.1 0.01 0.01 1.0];   % dinlenme sonrası RC gerilimleri ~0: küçük belirsizlik
-P.ekf_Q  = [1e-10 1e-6 1e-6 1e-8];
+P.ekf_P0 = [0.1 0.01 0.01 1.0 0.01];   % son durum k_R (R0 ölçeği): ±%10 başlangıç belirsizliği
+P.ekf_Q  = [1e-10 1e-6 1e-6 1e-8 1e-8];
+P.ekf_kr_min = 0.5;  P.ekf_kr_max = 2.0;
 P.ekf_R  = 0.25^2;      % paket gerilim ölçüm varyansı [V^2]
 P.ekf_gate  = 10;       % normalize inovasyon kapısı [sigma] (EMI sıçramalarını reddeder)
 P.ekf_n_rej = 5;        % 5 örnek üst üste red -> model yanlış, kapı açılır
@@ -80,7 +81,9 @@ P.ekf_n_rej = 5;        % 5 örnek üst üste red -> model yanlış, kapı açı
 % ---- Sensör teşhisi (CAN 0x101 değerleri üzerinde) ----
 P.diag_T_min    = -30;  % [°C] altı: kopuk NTC (ADC skala sonu)
 P.diag_T_max    = 85;   % [°C] üstü: kısa devre NTC
-P.diag_T_rate   = 2.0;  % [°C/örnek] fiziksel olarak imkânsız değişim
+P.diag_T_rate   = 2.0;  % [°C] ölçümün hızlı süzgeçten farkı (3 örnek üst üste) -> imkânsız değişim
+P.diag_T_alpha  = 0.28; % 1 - exp(-0.1 / 0.3 s)
+P.diag_n_rate   = 3;
 P.diag_n_frozen = 50;   % 50 örnek (5 s) aynı değer -> donmuş sensör
 
 % ---- Çevrimiçi direnç kestiricisi (ML SOH modelinin girdisi) ----
@@ -112,7 +115,7 @@ P.dec_soc_empty  = 0.03;
 P.dec_v_safe_lo  = 2.50;  % [V] veri sayfası kesme gerilimi, 1 s süre filtresi
 P.dec_v_safe_hi  = 4.25;  % [V] veri sayfası aşırı gerilim koruması
 P.dec_t_hard     = 1.0;   % [s]
-P.dec_bias_max   = 5.0;   % [A] akım kayması makullük sınırı
+P.dec_bias_max   = 8.0;   % [A] akım kayması makullük sınırı (5 A: direnç uyumsuzluğunda sahte LIMP, A3)
 P.dec_t_exit_derate = 10; % [s] gevşetici yönde bekleme
 P.dec_t_exit_limp   = 10;
 P.dec_ramp_up    = 10;    % [A/s] I_allow artış hızı; düşüşler anında

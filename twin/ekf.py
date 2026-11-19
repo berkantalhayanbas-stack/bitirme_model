@@ -3,6 +3,11 @@ Paket seviyesinde Genişletilmiş Kalman Filtresi (EKF) — SOC kestirimi.
 
 Durum vektörü (3 durumlu):  x = [SOC, V1, V2]^T
 Durum vektörü (4 durumlu):  x = [SOC, V1, V2, b_I]^T   (akım sensörü kayması)
+Durum vektörü (5 durumlu):  x = [SOC, V1, V2, b_I, k_R]^T   (+ R0 ölçeği; ECU sürümü)
+  k_R: gerçek R0 / nominal R0 (yaşlanma, hücre saçılması). Duyarlılık analizinde (A3) R0 ±%20
+  uyumsuzluğu kayma durumuna yükleniyor, |b_I| sahte sensör arızası veriyordu (A7). Akımla
+  orantılı hata k_R'ye, sabit hata b_I'ya gider (sürüşte akım değiştiği için ayrışır).
+  y = OCV(SOC) - k_R R0 (I_m - b) - V1 - V2;  C = [dOCV, -1, -1, k_R R0, -R0 (I_m - b)]
 
 Model:
   SOC_k+1 = SOC_k - dt/(3600 Q) * (I_m - b)
@@ -29,7 +34,8 @@ import numpy as np
 class PackEKF:
     def __init__(self, pack_eq, ocv_poly_cell, ns, dt, soc0=0.5,
                  estimate_bias=True, q_diag=None, r_meas=0.25 ** 2,
-                 ea_r0=6200.0, ea_r1=17500.0, ea_r2=14300.0, use_temp=True, gate=10.0):
+                 ea_r0=6200.0, ea_r1=17500.0, ea_r2=14300.0, use_temp=True, gate=10.0,
+                 estimate_r=False, p_kr=0.01, q_kr=1e-8, kr_min=0.5, kr_max=2.0):
         self.Q_ah = pack_eq["Q_pack_Ah"]
         self.R0_ref = self.R0 = pack_eq["R0_pack"]
         self.ea_r0, self.ea_r1, self.ea_r2, self.use_temp = ea_r0, ea_r1, ea_r2, use_temp
@@ -44,13 +50,17 @@ class PackEKF:
         self.n_rej = 0            # art arda reddedilen örnek sayısı
         self.N_REJ_MAX = 5        # EMI sıçraması tek örnektir; 5 örnek (0.5 s) üst üste
                                   # red = ölçüm değil model yanlış -> kapıyı aç
-        n = 4 if estimate_bias else 3
+        self.nr = estimate_r and estimate_bias
+        self.kr_lim = (kr_min, kr_max)
+        n = 5 if self.nr else (4 if estimate_bias else 3)
         self.x = np.zeros(n)
         self.x[0] = soc0
+        if self.nr:
+            self.x[4] = 1.0
         # başlangıç belirsizliği: dinlenme sonrası RC gerilimleri ~0 bilindiği için küçük (0.01 V^2)
-        self.P = np.diag([0.1, 0.01, 0.01, 1.0][:n])
+        self.P = np.diag([0.1, 0.01, 0.01, 1.0, p_kr][:n])
         if q_diag is None:
-            q_diag = [1e-10, 1e-6, 1e-6, 1e-8][:n]
+            q_diag = [1e-10, 1e-6, 1e-6, 1e-8, q_kr][:n]
         self.Qn = np.diag(q_diag)
         self.Rn = r_meas
         self.a1 = np.exp(-dt / (self.R1 * self.C1))
@@ -73,6 +83,7 @@ class PackEKF:
             self.a1 = np.exp(-dt / (self.R1 * self.C1))
             self.a2 = np.exp(-dt / (self.R2 * self.C2))
         b = x[3] if self.nb else 0.0
+        kr = x[4] if self.nr else 1.0
         i = i_meas - b
         k = dt / (3600.0 * self.Q_ah)
 
@@ -81,7 +92,7 @@ class PackEKF:
         xp[0] = x[0] - k * i
         xp[1] = self.a1 * x[1] + self.R1 * (1 - self.a1) * i
         xp[2] = self.a2 * x[2] + self.R2 * (1 - self.a2) * i
-        A = np.diag([1.0, self.a1, self.a2] + ([1.0] if self.nb else []))
+        A = np.diag([1.0, self.a1, self.a2] + ([1.0] if self.nb else []) + ([1.0] if self.nr else []))
         if self.nb:
             A[0, 3] = k
             A[1, 3] = -self.R1 * (1 - self.a1)
@@ -89,8 +100,9 @@ class PackEKF:
         P = A @ self.P @ A.T + self.Qn
 
         # ---- Düzeltme (a posteriori) ----
-        y_hat = self.ocv(xp[0]) - self.R0 * i - xp[1] - xp[2]
-        C = np.array([self.docv(xp[0]), -1.0, -1.0] + ([self.R0] if self.nb else []))
+        y_hat = self.ocv(xp[0]) - kr * self.R0 * i - xp[1] - xp[2]
+        C = np.array([self.docv(xp[0]), -1.0, -1.0] + ([kr * self.R0] if self.nb else [])
+                     + ([-self.R0 * i] if self.nr else []))
         S = C @ P @ C + self.Rn
         K = P @ C / S
         innov = v_meas - y_hat
@@ -102,6 +114,8 @@ class PackEKF:
             self.x, self.P = xp, P
             return self.x.copy(), innov
         self.x = xp + K * innov
+        if self.nr:
+            self.x[4] = np.clip(self.x[4], *self.kr_lim)
         I_KC = np.eye(len(x)) - np.outer(K, C)
         self.P = I_KC @ P @ I_KC.T + self.Rn * np.outer(K, K)   # Joseph formu
         return self.x.copy(), innov

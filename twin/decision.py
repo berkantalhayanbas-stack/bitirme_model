@@ -71,7 +71,9 @@ class DecisionParams:
     k_ss = 1.8 / 9.0                      # Rc / Ru_nom
     soc_empty = 0.03
     v_safe_lo, v_safe_hi, t_hard = 2.50, 4.25, 1.0
-    bias_max = 5.0
+    bias_max = 8.0          # [A] EKF kayma kestiriminin makullük sınırı. 5 A idi: direnç uyumsuzluğunda
+                            # (R1 x1,5, tau2 x0,5; A3) kestirim 5,9 A'ya çıkıp sahte LIMP veriyordu.
+                            # Daha küçük gerçek kaymaları EKF telafi ediyor (6 A: SOC hatası <= %2,3)
     # zamanlama ve rampalar
     t_exit_derate, t_exit_limp = 10.0, 10.0
     ramp_up = 10.0                        # A/s; düşüşler anında (güvenlik), artışlar rampalı (sürüş konforu)

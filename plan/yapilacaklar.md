@@ -33,7 +33,14 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
        bozulma x 4 senaryo. Kabul ölçütleri (S2 < 55 °C, S3 >= 2,8 V, S4 <= 4,2 V, yanlış SAFE yok)
        25/25 korunuyor. SOC RMSE (taban %0,29) en çok R0 ±%20 (%0,94 / %2,09), R1, R2 ±%50 (~%1,1-1,7)
        ve OCV ±15 mV (%1,4-1,7); termal parametreler, Ea, kapasite, R_u etkisiz. İki yeni bulgu:
-   [ ] **A7 Sahte akım sensörü teşhisi:** direnç uyumsuzluğunda (R0 ±%20, R1 x1,5, τ2 x0,5) EKF farkı
+   [x] **A7/A8 düzeltildi (19 Kasım):** EKF'ye R0 ölçeği k_R (5 durum), kayma makullük sınırı 5 -> 8 A;
+       T değişim hızı = hızlı süzgeçten (tau 0,3 s) > 2 °C fark, 3 örnek üst üste. Duyarlılık
+       analizinde sahte LIMP kalmadı (25/25 durumda %100 NORMAL); R0 x1,2 SOC RMSE %2,09 -> %0,29.
+       Python == C (SOC farkı <= 0,0013 puan), MATLAB A + B1-B8 PASS, PIL PASS (bms_step 86 us).
+   [ ] **A9 Gerçek akım kayması tespiti zayıf:** EKF kayma durumu yavaş ve küçük kestiriyor: ±8 A hiç,
+       +10 A ~1040 s'de, -12 A 1200 s'de hâlâ yok (SOC hatası %3-5). Öneri: kontaktör kapanmadan
+       önce (akım kesin 0) sıfır noktası kontrolü (endüstri yöntemi) + EKF b_I'nın bununla başlatılması.
+   [ ] (eski) **A7 Sahte akım sensörü teşhisi:** direnç uyumsuzluğunda (R0 ±%20, R1 x1,5, τ2 x0,5) EKF farkı
        akım kayması b_I'ya yüklüyor, |b_I| > 5 A -> neden 32 LIMP (S1'in %11-36'sı). Yaşlanmış pakette
        olur. Aday: çevrimiçi direnç kestiricisinin (rr) R0'ı EKF'ye vermesi (uyarlamalı R0) ve/veya
        kayma sınırını ayrı bir doğrulamaya bağlamak.
