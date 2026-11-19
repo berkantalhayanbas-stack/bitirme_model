@@ -26,7 +26,9 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
        14,3 ± 0,5 kJ/mol (veri/ea_kirkaldy.py). Eski varsayım: yalnız R0'a 20 kJ/mol. Dört modele
        uygulandı, tüm testler geçti. O'Regan 2022 tam metni erişilemedi (özet: kinetik Ea'lar
        ~60 kJ/mol'e kadar, nitel olarak uyumlu); tezde tam metinden sayı alınmalı.
-   [ ] **Kart:** twin_emu'yu (yeni Ea) Uno'ya yükle, butonlar.txt'yi tekrar koştur.
+   [x] **Kart:** yeni Ea'lı twin_emu ile butonlar.txt 5/5 PASS (soğutma alarmı 121,8 s; A2 LIMP
+       gerçek çekirdek 55,6 °C, SAFE 60,5 °C).
+   [ ] LM35 ~38 °C okuyor (oda bu kadar sıcak mı, sensör ısınan bir parçaya mı yakın?) kontrol et.
 3. [ ] **Duyarlılık analizi:** R_u, sensör gürültüsü, grup farkı, R2/τ2 ±%50 -> SOC hatası ve
        kararlar ne kadar değişiyor (tez tablosu).
 4. [ ] **SOC farkı 0,75-1,0 puan** (kartta): 19 grup / tek ortalama mı, başka bir şey mi, incele.
