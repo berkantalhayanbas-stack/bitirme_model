@@ -6,6 +6,8 @@ Kapalı çevrim simülasyonu (Python prototipi): karar mekanizmasının ayarı v
 
 Simulink karşılığı: build_bms_model (Decision bloğu) + test_decision.m
 """
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 
@@ -24,17 +26,25 @@ PEQ = PackTwin(c0).pack_equivalent()
 
 
 def run(I_dem, T_amb=25.0, ru_factor=1.0, soc0=0.8, weak=False, use_decision=True,
-        fault=None, t_fault=1200.0, seed=7, can=None):
+        fault=None, t_fault=1200.0, seed=7, can=None, truth=None, noise=None):
     """fault: None | 't_open' (NTC kopuk, -40 °C) | 'heat' (t_fault'tan sonra modellenmemiş dış ısı:
            iki düğüm 0,05 °C/örnek, yüzey 62 °C'ye kadar = twin_emu A2 butonu) | 'q_int' (çekirdeğe
            5 W/hücre ek ısı: iç kısa devre başlangıcı benzeri; gözlemcinin modelinde yok).
     can: None (arızasız CAN) | dict(mode, msg, t, dur) -> can_monitor.CanRx arıza enjeksiyonu
-         (mode 1 kayıp, 2 CRC bozuk, 3 donmuş sayaç; msg 1 = 0x101, 2 = 0x102, 3 = ikisi)."""
+         (mode 1 kayıp, 2 CRC bozuk, 3 donmuş sayaç; msg 1 = 0x101, 2 = 0x102, 3 = ikisi).
+    truth: duyarlılık analizi için ikizin (gerçeğin) parametre çarpanları, ör. {"r0": 1.2, "ru": 2};
+           "ocv_off" [V] OCV tablosuna eklenir. ECU nominal parametrelerle çalışmaya devam eder.
+    noise: ölçüm gürültüsü/kayması, varsayılan dict(sv=0.25, si=0.5, bias=0.5, st=0.3, sc=0.005)."""
     rng = np.random.default_rng(seed)
-    cell = CellParams(ru=c0.ru * ru_factor)
+    tr = dict(truth or {})
+    ocv_off = tr.pop("ocv_off", 0.0)
+    base = replace(c0, **{k: getattr(c0, k) * f for k, f in tr.items()},
+                   ocv_tab=c0.ocv_tab + ocv_off)
+    nz = {**dict(sv=0.25, si=0.5, bias=0.5, st=0.3, sc=0.005), **(noise or {})}
+    cell = replace(base, ru=base.ru * ru_factor)
     avg = PackTwin(cell, PackConfig(t_amb=T_amb), soc0=soc0)
-    wk = PackTwin(CellParams(ru=c0.ru * ru_factor, capacity_ah=c0.capacity_ah * 0.9,
-                             r0=c0.r0 * 1.2, r1=c0.r1 * 1.2, r2=c0.r2 * 1.2),
+    wk = PackTwin(replace(cell, capacity_ah=base.capacity_ah * 0.9, r0=base.r0 * 1.2,
+                          r1=base.r1 * 1.2, r2=base.r2 * 1.2),
                   PackConfig(t_amb=T_amb), soc0=soc0) if weak else None
     ekf = PackEKF(PEQ, COEF, 19, DT, soc0=0.5)
     th = None
@@ -66,11 +76,11 @@ def run(I_dem, T_amb=25.0, ru_factor=1.0, soc0=0.8, weak=False, use_decision=Tru
             v_pack, vmin, vmax = a["v_pack"], a["v_cell"], a["v_cell"]
             log["soc_w"][k] = a["soc"]
         # ---- CAN 0x101 ölçümleri (gürültü + kuantalama)
-        vm = q(v_pack + 0.25 * rng.standard_normal(), 0.1)
-        im = q(I + 0.5 + 0.5 * rng.standard_normal(), 0.1)
-        tm = q(a["t_surf"] + 0.3 * rng.standard_normal(), 0.1)
-        vmin_m = q(vmin + 0.005 * rng.standard_normal(), 0.001)
-        vmax_m = q(vmax + 0.005 * rng.standard_normal(), 0.001)
+        vm = q(v_pack + nz["sv"] * rng.standard_normal(), 0.1)
+        im = q(I + nz["bias"] + nz["si"] * rng.standard_normal(), 0.1)
+        tm = q(a["t_surf"] + nz["st"] * rng.standard_normal(), 0.1)
+        vmin_m = q(vmin + nz["sc"] * rng.standard_normal(), 0.001)
+        vmax_m = q(vmax + nz["sc"] * rng.standard_normal(), 0.001)
         if fault == "t_open" and k * DT >= t_fault:
             tm = -40.0
         # ---- ECU CAN alımı: izleyici, kayıpta son geçerli değer

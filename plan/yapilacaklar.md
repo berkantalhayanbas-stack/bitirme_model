@@ -29,8 +29,17 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
    [x] **Kart:** yeni Ea'lı twin_emu ile butonlar.txt 5/5 PASS (soğutma alarmı 121,8 s; A2 LIMP
        gerçek çekirdek 55,6 °C, SAFE 60,5 °C).
    [ ] LM35 ~38 °C okuyor (oda bu kadar sıcak mı, sensör ısınan bir parçaya mı yakın?) kontrol et.
-3. [ ] **Duyarlılık analizi:** R_u, sensör gürültüsü, grup farkı, R2/τ2 ±%50 -> SOC hatası ve
-       kararlar ne kadar değişiyor (tez tablosu).
+3. [x] **Duyarlılık analizi, 19 Kasım** (twin/sensitivity.py, results/sensitivity.csv/.png): 24
+       bozulma x 4 senaryo. Kabul ölçütleri (S2 < 55 °C, S3 >= 2,8 V, S4 <= 4,2 V, yanlış SAFE yok)
+       25/25 korunuyor. SOC RMSE (taban %0,29) en çok R0 ±%20 (%0,94 / %2,09), R1, R2 ±%50 (~%1,1-1,7)
+       ve OCV ±15 mV (%1,4-1,7); termal parametreler, Ea, kapasite, R_u etkisiz. İki yeni bulgu:
+   [ ] **A7 Sahte akım sensörü teşhisi:** direnç uyumsuzluğunda (R0 ±%20, R1 x1,5, τ2 x0,5) EKF farkı
+       akım kayması b_I'ya yüklüyor, |b_I| > 5 A -> neden 32 LIMP (S1'in %11-36'sı). Yaşlanmış pakette
+       olur. Aday: çevrimiçi direnç kestiricisinin (rr) R0'ı EKF'ye vermesi (uyarlamalı R0) ve/veya
+       kayma sınırını ayrı bir doğrulamaya bağlamak.
+   [ ] **A8 Sıcaklık değişim hızı teşhisi gürültüye dar:** σ 0,6 °C'de ardışık fark > 2 °C/örnek
+       sıçramaları kalıcı "T geçersiz" -> sürüşün tamamı LIMP. Aday: 2 ardışık örnek şartı ya da
+       filtrelenmiş hız; gerçek NTC + ADC gürültüsü ölçülünce (B9) eşiği doğrula.
 4. [ ] **SOC farkı 0,75-1,0 puan** (kartta): 19 grup / tek ortalama mı, başka bir şey mi, incele.
 5. [ ] **Zayıf grup -%5 kapasite:** yeni hücre saçılmasının dışında (-%0,8) -> yaşlanma modeliyle
        "yaşlanmış grup" gerekçesi ya da değeri gerçekçi aralığa çek.
