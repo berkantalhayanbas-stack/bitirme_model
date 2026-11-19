@@ -33,8 +33,6 @@ k   = P.Ns / P.Np;
 R0r = R_scale * P.r0 * k;  R1 = R_scale * P.r1 * k;  C1 = P.c1 / k;
 R2  = R_scale * P.r2 * k;  C2 = P.c2 / k;
 Qah = Q_scale * P.Q_Ah * P.Np;
-a1  = exp(-dt / (R1 * C1));
-a2  = exp(-dt / (R2 * C2));
 Qn  = diag(P.ekf_Q);
 
 % ---- R0(T): Arrhenius, ölçülen T_surf ile (sensör geçersizse gözlemci kestirimi) ----
@@ -44,6 +42,10 @@ else
     T_use = Ts_hat_prev;
 end
 R0 = R0r * exp(P.ea_r0 / P.Rgas * (1/(T_use + 273.15) - 1/298.15));
+R1 = R1 * exp(P.ea_r1 / P.Rgas * (1/(T_use + 273.15) - 1/298.15));   % RC dalları (Kirkaldy 2024)
+R2 = R2 * exp(P.ea_r2 / P.Rgas * (1/(T_use + 273.15) - 1/298.15));
+a1 = exp(-dt / (R1 * C1));
+a2 = exp(-dt / (R2 * C2));
 
 i  = I_meas - x(4);
 kc = dt / (3600 * Qah);

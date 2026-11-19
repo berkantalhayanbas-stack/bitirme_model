@@ -13,12 +13,18 @@ Parametre kaynakları (ayrıntı: plan/parametre_tablosu.tex):
   - Kapasite, gerilim/akım sınırları, kütle: LG INR21700 M50T veri sayfası (Rev 0, 2018-07-16)
   - R0 = R(0.1 s), R1 (R(10 s) - R(0.1 s) kısıtından): Kirkaldy vd. (2024), %52 SOC, BoL
   - OCV(SOC): Kirkaldy vd. (2024) LG M50T GITT dinlenme sonu gerilimleri (BoL, 25 °C; veri/ocv_gitt.py, hücre A-D, E-H'de doğrulandı)
+  - Sıcaklık bağımlılığı (Ea): Kirkaldy vd. (2024) ham döngü verisi, 8 hücre 15-40 °C (veri/ea_kirkaldy.py)
   - Termal yapı: Lin vd. (2014) 2 düğümlü model; ısıl kapasite = kütle x ~1000 J/(kg K)
 """
 from dataclasses import dataclass, field
 import numpy as np
 
 R_GAS = 8.314  # J/(mol K)
+
+
+def arrhenius(ea, t_c):
+    """R(T)/R(25 °C) = exp(Ea/Rg (1/T - 1/298.15 K))."""
+    return np.exp(ea / R_GAS * (1.0 / (t_c + 273.15) - 1.0 / 298.15))
 
 
 @dataclass
@@ -34,7 +40,12 @@ class CellParams:
     c1: float = 1075.0                # F   -> tau1 = 10 s
     r2: float = 0.012                 # Ohm
     c2: float = 15000.0               # F   -> tau2 = 180 s
-    ea_r0: float = 20000.0            # R0 için Arrhenius aktivasyon enerjisi [J/mol]
+    # Arrhenius aktivasyon enerjileri [J/mol]: Kirkaldy 2024 Expt 5 ham döngü verisi, 8 hücre,
+    # 15/27/40 °C, 5 A basamağı (veri/ea_kirkaldy.py). R0 = 0.05 s ohmik kısım; R1 / R2 = 10 s /
+    # 30 s polarizasyonu (ohmik kısım çıkarılmış). Önceki varsayım: yalnız R0, 20 kJ/mol.
+    ea_r0: float = 6200.0
+    ea_r1: float = 17500.0
+    ea_r2: float = 14300.0
     # Termal (Lin et al. 2014 yapısı, 21700'e ölçeklenmiş tahmini değerler)
     cc: float = 64.0                  # çekirdek ısıl kapasitesi [J/K] (toplam 69 J/K: 69 g x ~1000 J/(kg K))
     cs: float = 5.0                   # yüzey ısıl kapasitesi [J/K]
@@ -89,11 +100,13 @@ class PackTwin:
         ocv = self.ocv_cell(self.soc)
         r0 = self.r0_cell(self.soc, self.t_core)
 
-        # RC dalları: kesin ayrıklaştırma (ZOH)
-        a1 = np.exp(-dt / (c.r1 * c.c1))
-        a2 = np.exp(-dt / (c.r2 * c.c2))
-        self.v1 = a1 * self.v1 + c.r1 * (1 - a1) * i
-        self.v2 = a2 * self.v2 + c.r2 * (1 - a2) * i
+        # RC dalları: kesin ayrıklaştırma (ZOH); R1, R2 sıcaklığa bağlı (Arrhenius), C sabit
+        r1 = c.r1 * arrhenius(c.ea_r1, self.t_core)
+        r2 = c.r2 * arrhenius(c.ea_r2, self.t_core)
+        a1 = np.exp(-dt / (r1 * c.c1))
+        a2 = np.exp(-dt / (r2 * c.c2))
+        self.v1 = a1 * self.v1 + r1 * (1 - a1) * i
+        self.v2 = a2 * self.v2 + r2 * (1 - a2) * i
 
         v_cell = ocv - r0 * i - self.v1 - self.v2
 

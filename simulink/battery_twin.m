@@ -34,22 +34,24 @@ i  = I_pack / P.Np;                                     % hücre akımı (seri g
 
 % ---- Ortak sıcaklık etkisi ----
 f_T = exp(P.ea_r0 / P.Rgas * (1/(S.tc + 273.15) - 1/298.15));
-a1  = exp(-dt / (Age_R * P.r1 * P.c1));
-a2  = exp(-dt / (Age_R * P.r2 * P.c2));
+f_1 = exp(P.ea_r1 / P.Rgas * (1/(S.tc + 273.15) - 1/298.15));   % RC dalları da sıcaklığa bağlı
+f_2 = exp(P.ea_r2 / P.Rgas * (1/(S.tc + 273.15) - 1/298.15));
+a1  = exp(-dt / (Age_R * P.r1 * f_1 * P.c1));
+a2  = exp(-dt / (Age_R * P.r2 * f_2 * P.c2));
 
 % ---- Ortalama (normal) hücre ----
 ocv  = interp1(P.soc_tab, P.ocv_tab, min(max(S.soc, 0), 1), 'linear');
 r0   = Age_R * P.r0 * f_T * (1 + 0.6 * exp(-S.soc / 0.08));
-S.v1 = a1 * S.v1 + Age_R * P.r1 * (1 - a1) * i;
-S.v2 = a2 * S.v2 + Age_R * P.r2 * (1 - a2) * i;
+S.v1 = a1 * S.v1 + Age_R * P.r1 * f_1 * (1 - a1) * i;
+S.v2 = a2 * S.v2 + Age_R * P.r2 * f_2 * (1 - a2) * i;
 v_cell = ocv - r0 * i - S.v1 - S.v2;
 
 % ---- Zayıf seri grup (aynı zaman sabitleri, ölçeklenmiş dirençler) ----
 kr     = P.weak_r * Age_R;
 ocv_w  = interp1(P.soc_tab, P.ocv_tab, min(max(S.soc_w, 0), 1), 'linear');
 r0_w   = kr * P.r0 * f_T * (1 + 0.6 * exp(-S.soc_w / 0.08));
-S.v1_w = a1 * S.v1_w + kr * P.r1 * (1 - a1) * i;
-S.v2_w = a2 * S.v2_w + kr * P.r2 * (1 - a2) * i;
+S.v1_w = a1 * S.v1_w + kr * P.r1 * f_1 * (1 - a1) * i;
+S.v2_w = a2 * S.v2_w + kr * P.r2 * f_2 * (1 - a2) * i;
 v_weak = ocv_w - r0_w * i - S.v1_w - S.v2_w;
 
 % ---- Termal (ortalama hücre) ----

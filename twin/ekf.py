@@ -29,12 +29,12 @@ import numpy as np
 class PackEKF:
     def __init__(self, pack_eq, ocv_poly_cell, ns, dt, soc0=0.5,
                  estimate_bias=True, q_diag=None, r_meas=0.25 ** 2,
-                 ea_r0=20000.0, use_temp=True, gate=10.0):
+                 ea_r0=6200.0, ea_r1=17500.0, ea_r2=14300.0, use_temp=True, gate=10.0):
         self.Q_ah = pack_eq["Q_pack_Ah"]
         self.R0_ref = self.R0 = pack_eq["R0_pack"]
-        self.ea_r0, self.use_temp = ea_r0, use_temp
-        self.R1, self.C1 = pack_eq["R1_pack"], pack_eq["C1_pack"]
-        self.R2, self.C2 = pack_eq["R2_pack"], pack_eq["C2_pack"]
+        self.ea_r0, self.ea_r1, self.ea_r2, self.use_temp = ea_r0, ea_r1, ea_r2, use_temp
+        self.R1_ref = self.R1 = pack_eq["R1_pack"]; self.C1 = pack_eq["C1_pack"]
+        self.R2_ref = self.R2 = pack_eq["R2_pack"]; self.C2 = pack_eq["C2_pack"]
         self.ns, self.dt = ns, dt
         self.p = np.poly1d(ocv_poly_cell)
         self.dp = self.p.deriv()
@@ -66,8 +66,12 @@ class PackEKF:
         x, dt = self.x, self.dt
         # R0(T): CAN 0x101'den gelen yüzey sıcaklığıyla Arrhenius düzeltmesi
         if self.use_temp:
-            self.R0 = self.R0_ref * np.exp(self.ea_r0 / 8.314 *
-                                           (1 / (t_surf + 273.15) - 1 / 298.15))
+            f = lambda ea: np.exp(ea / 8.314 * (1 / (t_surf + 273.15) - 1 / 298.15))
+            self.R0 = self.R0_ref * f(self.ea_r0)
+            self.R1 = self.R1_ref * f(self.ea_r1)          # RC dalları da sıcaklığa bağlı
+            self.R2 = self.R2_ref * f(self.ea_r2)          # (Kirkaldy 2024, veri/ea_kirkaldy.py)
+            self.a1 = np.exp(-dt / (self.R1 * self.C1))
+            self.a2 = np.exp(-dt / (self.R2 * self.C2))
         b = x[3] if self.nb else 0.0
         i = i_meas - b
         k = dt / (3600.0 * self.Q_ah)

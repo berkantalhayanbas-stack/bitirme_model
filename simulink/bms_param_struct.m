@@ -30,7 +30,9 @@ P.lim_I_dis   = [2.425 7.275 7.275];% [A/hücre] 10-25 °C'de muhafazakâr olara
 P.r0    = 0.0264;       % [Ohm] Kirkaldy R(0.1 s), %52 SOC, 25 °C
 P.r1    = 0.0093;  P.c1 = 1075;     % R(10 s)-R(0.1 s) = 6.54 mOhm kısıtından; tau1 = 10 s
 P.r2    = 0.012;   P.c2 = 15000;    % tau2 = 180 s
-P.ea_r0 = 20000;        % R0 Arrhenius aktivasyon enerjisi [J/mol]
+% Arrhenius aktivasyon enerjileri [J/mol]: Kirkaldy 2024 Expt 5 ham döngü verisi, 8 hücre 15-40 °C,
+% 5 A basamağı (veri/ea_kirkaldy.py): R0 = 0.05 s ohmik, R1 / R2 = 10 s / 30 s polarizasyonu
+P.ea_r0 = 6200;  P.ea_r1 = 17500;  P.ea_r2 = 14300;
 P.Rgas  = 8.314;
 
 % ---- Zayıf seri grup (Weak_on = 1 iken; 1 / 19 grup) ----
@@ -100,7 +102,6 @@ P.dec_t_cool_blank = 120; % [s] açılıştan sonra soğutma alarmı yok (gözle
 P.dec_v_lim_dis  = 2.90;  % [V] gerilim payı sınırları (SOP), tasarım sınırı 2.8 V'un üstünde
 P.dec_v_lim_chg  = 4.18;
 P.dec_k_sop      = 0.3;   % SOP geri besleme kazancı
-P.dec_r_rc       = 0.0093 + 0.012;   % R1 + R2 [Ohm] sürekli akım kapasitesi için
 P.dec_band_on    = 0.90;  % kapasite/veri sayfası oranı < 0.90 -> neden; >= 1.00 -> kalkar
 P.dec_band_off   = 1.00;
 P.dec_floor      = 0.25;  % LIMP-HOME taban akımı (nominalin %25'i, lamba asla sönmez)

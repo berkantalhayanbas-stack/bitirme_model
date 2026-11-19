@@ -31,7 +31,9 @@ Mass & $m$ & \SI{69}{g} & Datasheet / measured \SI{69.25}{g} \\
 Ohmic resistance & $R_0$ & \SI{26.4}{m\ohm} & $R_{0.1\,\text{s}}$ at 52\,\% SOC, BoL \cite{kirkaldy2024} \\
 RC branch 1 & $R_1$, $\tau_1$ & \SI{9.3}{m\ohm}, \SI{10}{s} & From $R_{10\,\text{s}}-R_{0.1\,\text{s}} = \SI{6.54}{m\ohm}$ \cite{kirkaldy2024}: $R_1(1-e^{-1}) + R_2(1-e^{-10/\tau_2})$ \\
 RC branch 2 & $R_2$, $\tau_2$ & \SI{12}{m\ohm}, \SI{180}{s} & Assumed slow diffusion branch (to be refined by pulse test) \\
-$R_0$ temperature dependence & $E_{a,R_0}$ & \SI{20}{kJ/mol} & Arrhenius, typical literature value \\
+$R_0$ temperature dependence & $E_{a,R_0}$ & \SI{6.2}{kJ/mol} & Kirkaldy 2024 raw cycling, 8 cells 15--40\,\si{\celsius}, 0.05\,s after 5\,A step \\
+$R_1$ temperature dependence & $E_{a,R_1}$ & \SI{17.5}{kJ/mol} & same data, 10\,s polarisation (ohmic part removed) \\
+$R_2$ temperature dependence & $E_{a,R_2}$ & \SI{14.3}{kJ/mol} & same data, 30\,s polarisation (ohmic part removed) \\
 $R_0$ low-SOC increase & -- & $1+0.6\,e^{-\text{SOC}/0.08}$ & Empirical shape \\
 Open-circuit voltage & $U_\text{OCV}(\text{SOC})$ & 23-point table & Electrode OCP fits for LG M50 \cite{chen2020}, same NMC811\,/\,graphite--SiO$_x$ chemistry as the M50T; $U_\text{OCV}=U_+(y)-U_-(x)$ \\
 \midrule

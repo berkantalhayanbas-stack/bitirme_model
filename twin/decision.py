@@ -43,7 +43,7 @@ C_THERM, C_COOL, C_SOP_DIS, C_SOP_CHG, C_DS_T, C_SENSOR, C_EMPTY, C_HARD = 1, 2,
 
 class DecisionParams:
     ns, np_, ts = 19, 12, 0.1
-    r0, ea, rgas = 0.0264, 20000.0, 8.314
+    r0, ea, rgas = 0.0264, 6200.0, 8.314     # Ea: R0 ohmik kısım (Kirkaldy 2024)
     # veri sayfası (hücre başı, A) — sürekli akım, LG INR21700 M50T
     # Bölge sınırlarında basamak yerine 2 °C'lik doğrusal geçiş (durum titreşmesin); geçiş
     # her zaman kısıtlı tarafta: sınır sıcaklığın kendisi (ör. 25 °C şarj) üst bölgeye dahil.
@@ -58,7 +58,8 @@ class DecisionParams:
                             # R_u kestirimi geçici olarak > 30 K/W (HIL'de bulundu, U13)
     # gerilim payı (SOP)
     v_lim_dis, v_lim_chg, k_sop = 2.90, 4.18, 0.3
-    r_rc = 0.0093 + 0.012          # R1 + R2 [Ohm/hücre] (sürekli akımda kutuplaşma)
+    r1, r2 = 0.0093, 0.012         # R1, R2 [Ohm/hücre] (sürekli akımda kutuplaşma), 25 °C
+    ea_r1, ea_r2 = 17500.0, 14300.0   # RC dallarının Ea'sı (Kirkaldy 2024)
     band_on, band_off = 0.90, 1.00   # neden < %90'da başlar, ancak %100'e dönünce kalkar
     # LIMP-HOME ve sert sınırlar
     floor_frac = 0.25
@@ -163,7 +164,8 @@ class Decision:
         sop_dis = i_dis_now + p.k_sop * p.np_ * (V_min - p.v_lim_dis) / r0
         sop_chg = i_chg_now + p.k_sop * p.np_ * (p.v_lim_chg - V_max) / r0
         # yavaş kapasite tahmini (durum için)
-        r_dc = r0 + p.r_rc
+        r_dc = (r0 + p.r1 * np.exp(p.ea_r1 / p.rgas * (1 / (Tc_hat + 273.15) - 1 / 298.15))
+                + p.r2 * np.exp(p.ea_r2 / p.rgas * (1 / (Tc_hat + 273.15) - 1 / 298.15)))
         ic = I_meas / p.np_
         qs_dis = p.np_ * (V_min + max(ic, 0.0) * r0 - p.v_lim_dis) / r_dc
         qs_chg = p.np_ * (p.v_lim_chg - (V_max - max(-ic, 0.0) * r0)) / r_dc

@@ -86,7 +86,8 @@ psi_s = max(psi_T, psi_C);
 r0 = P.r0 * exp(P.ea_r0 / P.Rgas * (1/(Tc_hat + 273.15) - 1/298.15));
 sop_dis = max(I_meas, 0) + P.dec_k_sop * np_ * (V_min - P.dec_v_lim_dis) / r0;
 sop_chg = max(-I_meas, 0) + P.dec_k_sop * np_ * (P.dec_v_lim_chg - V_max) / r0;
-r_dc = r0 + P.dec_r_rc;
+r_dc = r0 + P.r1 * exp(P.ea_r1 / P.Rgas * (1/(Tc_hat + 273.15) - 1/298.15)) ...
+           + P.r2 * exp(P.ea_r2 / P.Rgas * (1/(Tc_hat + 273.15) - 1/298.15));   % R0 + R1 + R2 (T)
 ic = I_meas / np_;
 qs_dis = np_ * (V_min + max(ic, 0) * r0 - P.dec_v_lim_dis) / r_dc;
 qs_chg = np_ * (P.dec_v_lim_chg - (V_max - max(-ic, 0) * r0)) / r_dc;

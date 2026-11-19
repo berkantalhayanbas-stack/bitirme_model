@@ -21,7 +21,7 @@ import numpy as np
 
 
 class RintEstimator:
-    def __init__(self, r_bol=0.0264, ns=19, np_=12, ea=20000.0, di_min=20.0,
+    def __init__(self, r_bol=0.0264, ns=19, np_=12, ea=6200.0, di_min=20.0,
                  soc_min=0.2, lam=0.999):
         self.r_bol, self.k = r_bol, np_ / ns
         self.ea, self.di_min, self.soc_min, self.lam = ea, di_min, soc_min, lam
