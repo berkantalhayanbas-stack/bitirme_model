@@ -37,6 +37,10 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
        T değişim hızı = hızlı süzgeçten (tau 0,3 s) > 2 °C fark, 3 örnek üst üste. Duyarlılık
        analizinde sahte LIMP kalmadı (25/25 durumda %100 NORMAL); R0 x1,2 SOC RMSE %2,09 -> %0,29.
        Python == C (SOC farkı <= 0,0013 puan), MATLAB A + B1-B8 PASS, PIL PASS (bms_step 86 us).
+   [ ] **LED'ler (kullanıcı, 19 Kasım akşamı):** "LED'ler hep yanıyor, sorun var gibi". O an ECU DERATE,
+       kısa far PWM %15,4 (ölçülen de %15,4, 999 Hz), uzun far %0, kontaktör kapalı. Yarın kartta bak:
+       %15'te de tam parlak mı görünüyor (algı), PWM gerçekten LED'e ulaşıyor mu (ULN IN1/OUT1, PA8
+       TIM1), uzun far hattı, SAFE'te sönüyor mu, kablolama. Gerekirse parlaklık eğrisi (gamma).
    [ ] **A9 Gerçek akım kayması tespiti zayıf:** EKF kayma durumu yavaş ve küçük kestiriyor: ±8 A hiç,
        +10 A ~1040 s'de, -12 A 1200 s'de hâlâ yok (SOC hatası %3-5). Öneri: kontaktör kapanmadan
        önce (akım kesin 0) sıfır noktası kontrolü (endüstri yöntemi) + EKF b_I'nın bununla başlatılması.
