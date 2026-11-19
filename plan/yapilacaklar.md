@@ -13,9 +13,14 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
 - PIL referansları artık yeniden üretilebilir (tools/pil_test/sil_ref.py).
 
 ## A. Güvenlik ve algoritma (önce)
-1. [ ] **Isıl gecikme (3. bulgu):** aşırı ısınmada kestirim gerçeğin 11 °C gerisinde, SAFE gerçek
-       çekirdek 66 °C'de geldi. (a) LIMP/SAFE için max(Tc_hat, ölçülen T); (b) inovasyon tabanlı
-       "açıklanamayan ısı" anomali bayrağı -> önleyici LIMP. C + Python + MATLAB + testler + kart.
+1. [x] **Isıl gecikme (3. bulgu), 19 Kasım:** LIMP/SAFE artık ayrıca ölçüme bağlı çekirdek sınırıyla
+       (T_ss = T_ölç + Rc/Ru (T_ölç - T_ortam) > 55/60 °C, 1 s). Kart A2: LIMP gerçek çekirdek
+       55,5 °C, SAFE 60,4 °C (önce 65,9 / 66,4). S1-S7 değişmedi; U14, S8/S9, PIL S8 eklendi.
+       İnovasyon CUSUM'u denendi, benimsenmedi: yalnız hızlı dış ısıyı yakalıyor, iç ısıyı
+       gözlemci soğutma değişimi gibi yutuyor, yeniden başlatma sonrası 1/3 tohumda sahte alarm.
+   [ ] **Yeni (A1'den):** sıcak + soğutması arızalı pakette yeniden başlatma sonrası ısıl gözlemci
+       sapıyor (Tc^ ölçümün 7 °C altına); nedeni büyük olasılıkla SOC EKF'nin 0,5'ten başlaması
+       (ısı girdisi OCV(SOC^) - V yanlış). SOC'yi açılışta dinlenme OCV'sinden başlatmayı incele.
 2. [ ] **Ea:** galvani paketi + Kirkaldy ham .mpr (10/25/40 °C, ~170 MB) -> akım basamaklarından
        R(T) -> Ea uydurma; O'Regan 2022 ile karşılaştırma.
 3. [ ] **Duyarlılık analizi:** R_u, sensör gürültüsü, grup farkı, R2/τ2 ±%50 -> SOC hatası ve
