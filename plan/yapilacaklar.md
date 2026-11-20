@@ -73,6 +73,13 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
 10. [ ] **Gerçek akım ölçümü** (alınacaklar 2): INA226 + küçük yük; bias/gürültü gerçek veride.
 11. [ ] **Bağımsız analog koruma** (alınacaklar 3): LM393 ile yazılımdan bağımsız ikinci katman.
 12. [ ] **Sürücü uyarısı:** buzzer (DERATE kısa bip, SAFE sürekli).
+12b. [ ] **Çok kriterli stres indeksi Ψ (ÖNEMLİ, tez başlığı; 20 Kasım tasarım taslağı, kullanıcı onayı bekliyor):**
+       bugün Ψ = max(Ψ_T, Ψ_C). Önerilen ek alt indeksler: Ψ_Ṫ (dT/dt 3→10 °C/dk, tavan 0,5),
+       Ψ_I (I²t %70→100, 0,3), Ψ_H (EKF k_R 1,2→1,6, 0,3), Ψ_B (ΔV 30→100 mV düşük akımda, 0,2),
+       Ψ_U (σ_SOC %3→8, 0,2). Birleştirme Ψ = min(1, Ψ_max + κ(ΣΨᵢ − Ψ_max)), κ = 0,25; baskın
+       kriter raporlanır. Açık: eşikler, κ, 0x201 cause baytı dolu (baskın kriter 0x202 d[6] üst
+       4 bit?), k_R SOP direncine de bağlansın mı. Sıra: Python → MATLAB → C → SIL/PIL → MC 1000
+       (sahte kısma yok) → kart → figür.
 
 ## C. Doğrulama, demo, belge
 0. [x] **Kart üstü Monte Carlo (20 Kasım):** APP_MC = 8, 1000 rastgele kapalı çevrim koşusu (600 s, ikiz +
