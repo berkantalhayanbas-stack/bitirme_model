@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 VERI = os.path.join(HERE, "..", "veri")
-FIG = os.path.join(HERE, "..", "simulink", "sonuclar")
+FIG = os.path.join(HERE, "..", "results")
 os.makedirs(FIG, exist_ok=True)
 
 # Deney koşulları (experiment_metadata.xlsx'teki "SoC range" sütunundan)
@@ -119,4 +119,4 @@ for a in ax:
 fig.suptitle("LG M50T ageing data (Kirkaldy et al. 2024): 40 cells, 15 operating conditions")
 fig.tight_layout()
 fig.savefig(os.path.join(FIG, "ml_data_overview.png"), dpi=200)
-print("Saved: simulink/sonuclar/ml_data_overview.png")
+print("Saved: results/ml_data_overview.png")

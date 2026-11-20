@@ -24,7 +24,7 @@ from sensors import measure
 from ekf import PackEKF
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FIG = os.path.join(HERE, "..", "simulink", "sonuclar")
+FIG = os.path.join(HERE, "..", "results")
 DT = 0.1
 ref = pd.read_csv(os.path.join(HERE, "..", "simulink", "twin_reference.csv"))
 I_STD = ref.i_pack.values
@@ -108,7 +108,7 @@ ax.set_xticks(range(P.shape[1])); ax.set_xticklabels(P.columns, fontsize=8)
 ax.set_yticks(range(P.shape[0])); ax.set_yticklabels(P.index, fontsize=8)
 ax.set_title("SOC RMSE after 60 s [%] (colour: log scale; target < 1.5 %)", fontsize=10)
 fig.tight_layout(); fig.savefig(os.path.join(FIG, "estimator_comparison_table.png"), dpi=200)
-print("\nSaved: results/estimator_comparison.csv, simulink/sonuclar/estimator_comparison_*.png")
+print("\nSaved: results/estimator_comparison.csv, results/estimator_comparison_*.png")
 
 # ------------------------------------------------------------------ kayma durumunun değeri
 print("\n=== Value of the bias state: larger current-sensor offsets (normal scenario) ===")

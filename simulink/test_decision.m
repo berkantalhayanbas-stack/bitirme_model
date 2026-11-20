@@ -10,7 +10,7 @@
 %      S6 NTC kopması (1200 s)                    -> 0.1 s içinde LIMP-HOME, taban %25
 %      S7 5 °C'de sürüş                           -> veri sayfası 0.5C (29.1 A) deşarj sınırı
 %   Önkoşul: build_bms_model (Decision bloğu içeren sürüm).
-%   Çıktılar İngilizce; şekil sonuclar/decision_closed_loop.png, veriler decision_sonuclari.mat
+%   Çıktılar İngilizce; şekil ../results/decision_closed_loop.png, veriler decision_sonuclari.mat
 
 % ================================================================== A) birim test vektörleri
 V = readtable('decision_vectors.csv');

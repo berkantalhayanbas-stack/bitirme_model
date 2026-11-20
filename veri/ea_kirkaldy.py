@@ -12,7 +12,7 @@ Sıcaklık: hücre yüzeyindeki termokupl (dosyadaki Temperature sütunu), basam
 Yaşlanmanın etkisini ayırmak için yalnız ilk N_CYC deşarj kullanılır; her hücrenin medyanı alınır.
 Arrhenius: R(T) = R_25 exp(Ea/Rg (1/T - 1/298.15 K)), ln R'nin 1/T'ye doğrusal uydurması.
 
-Kullanım: python -I ea_kirkaldy.py   -> ea_kirkaldy.csv, ea_kirkaldy.png
+Kullanım: python -I ea_kirkaldy.py   -> ea_kirkaldy.csv, ../results/ea_kirkaldy.png
 """
 import glob
 import os
@@ -106,4 +106,4 @@ ax.grid(color="#d6d5cf", lw=0.6)
 for sp in ("top", "right"):
     ax.spines[sp].set_visible(False)
 fig.tight_layout()
-fig.savefig(os.path.join(HERE, "ea_kirkaldy.png"), dpi=200)
+fig.savefig(os.path.join(HERE, "..", "results", "ea_kirkaldy.png"), dpi=200)

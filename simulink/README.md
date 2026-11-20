@@ -28,7 +28,7 @@ run_and_compare      % simülasyonu koşturur, Python ile karşılaştırır, gr
 ## Senaryo kütüphanesi (1. hafta)
 ```matlab
 build_bms_model    % SOC0 girişi eklendi; bir kez yeniden kurulmalı
-scenarios          % 6 senaryo, özet tablo, sonuclar/*.png, senaryo_sonuclari.mat
+scenarios          % 6 senaryo, özet tablo, ../results/*.png, senaryo_sonuclari.mat
 ```
 
 ## Akım sınırlayıcı ve zayıf hücre (1. hafta ekleri)

@@ -8,7 +8,7 @@
 %     5 i_offset (normal)        : +3 A akım ofseti (EKF kayma durumu yakalamalı)
 %   Ayrıca 6 normal senaryoda (arıza yok) yanlış alarm olmadığı kontrol edilir.
 %   Önkoşul: build_bms_model (Fault_Injector + Sensor_Diag içeren sürüm).
-%   Çıktılar İngilizce; şekil sonuclar/ klasörüne, veriler fault_sonuclari.mat'a.
+%   Çıktılar İngilizce; şekil ../results/ klasörüne, veriler fault_sonuclari.mat'a.
 
 bms_init;
 I_std = ref.i_pack;

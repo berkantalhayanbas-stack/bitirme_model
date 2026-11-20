@@ -8,7 +8,7 @@
 %       (ısıl zaman sabitleri dakikalar mertebesinde: ihmal edilebilir).
 %   Simülasyon 10 Hz, STM32 döngüsü 100 Hz: iki örnekleme için de tasarlanır; gecikme saniye
 %   cinsinden aynıdır (kesim frekansı belirler, örnekleme değil).
-%   Çıktılar İngilizce; şekil sonuclar/prefilter_design.png
+%   Çıktılar İngilizce; şekil ../results/prefilter_design.png
 
 fc = 0.5;                                   % kesim frekansı [Hz]
 fsList = [10 100];                          % simülasyon ve STM32

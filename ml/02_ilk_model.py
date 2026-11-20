@@ -28,7 +28,7 @@ from sklearn.tree import DecisionTreeRegressor, export_text
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FIG = os.path.join(HERE, "..", "simulink", "sonuclar")
+FIG = os.path.join(HERE, "..", "results")
 os.makedirs(FIG, exist_ok=True)
 
 D = pd.read_csv(os.path.join(HERE, "dataset.csv"))
@@ -92,4 +92,4 @@ ax.set_title("Training error keeps falling, test error does not (random split)")
 ax.grid(alpha=.3); ax.legend()
 fig.tight_layout()
 fig.savefig(os.path.join(FIG, "ml_depth_sweep.png"), dpi=200)
-print("Saved: simulink/sonuclar/ml_depth_sweep.png")
+print("Saved: results/ml_depth_sweep.png")

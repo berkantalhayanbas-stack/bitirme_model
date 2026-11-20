@@ -37,8 +37,8 @@ fprintf('RMSE (after 60 s)     : %.3f %%   [target < 1.5]\n', rmse_60);
 fprintf('Last |error| > 2%% at : %.1f s     [target < 60]\n', t_conv);
 fprintf('Estimated current bias: %.2f A (true 0.50 A)\n', bias(end));
 
-% ---------------- Grafikler (tümü sonuclar/ klasörüne kaydedilir) ----------------
-if ~exist('sonuclar', 'dir'), mkdir('sonuclar'); end
+% ---------------- Grafikler (tümü ../results/ klasörüne kaydedilir) ----------------
+if ~exist(fullfile('..', 'results'), 'dir'), mkdir(fullfile('..', 'results')); end
 fA = figure('Name', 'Digital twin + EKF', 'Color', 'w', 'Position', [80 60 1000 850]);
 tiledlayout(4, 1, 'TileSpacing', 'compact');
 nexttile; plot(t, ref.i_pack(1:n)); ylabel('I_{pack} [A]'); grid on;
@@ -59,4 +59,4 @@ title('Cross-validation: Simulink vs Python');
 
 save_fig(fA, 'twin_ekf_overview.png');
 save_fig(fB, 'twin_crossvalidation.png');
-fprintf('Figures saved to sonuclar/\n');
+fprintf('Figures saved to ../results/\n');

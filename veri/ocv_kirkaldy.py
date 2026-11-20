@@ -4,7 +4,7 @@ Veri: doi:10.5281/zenodo.10637534 (CC BY 4.0), Expt 5 hücre A-H, RPT0, '0.1C ch
 Yöntem: SOC_deşarj = 1 - Q/Q_d, SOC_şarj = Q/Q_c (kendi kapasiteleriyle normalize).
   Sözde OCV = (V_şarj + V_deşarj)/2  -> C/10'daki IR düşümü (~0,5 A x ~40 mOhm) ve histerezis
   ortalanır; yarı fark = IR + histerezis payı. 8 hücrenin medyanı. Chen vd. (2020) tablosuyla
-  karşılaştırılır; çıktı ocv_kirkaldy.csv (23 nokta, modelin SOC ızgarası) ve ocv_kirkaldy.png.
+  karşılaştırılır; çıktı ocv_kirkaldy.csv (23 nokta, modelin SOC ızgarası) ve ../results/ocv_kirkaldy.png.
 """
 import glob
 import os
@@ -55,6 +55,6 @@ try:
     ax[1].axhline(0, color="gray", lw=0.5); ax[1].set_ylim(-80, 80)
     ax[1].set_xlabel("SOC"); ax[1].set_ylabel("mV"); ax[1].legend(fontsize=8)
     fig.suptitle("LG M50T OCV from Kirkaldy et al. (2024) C/10 data vs model table")
-    fig.tight_layout(); fig.savefig(os.path.join(HERE, "ocv_kirkaldy.png"), dpi=130)
+    fig.tight_layout(); fig.savefig(os.path.join(HERE, "..", "results", "ocv_kirkaldy.png"), dpi=130)
 except Exception as e:
     print("sekil yok:", e)

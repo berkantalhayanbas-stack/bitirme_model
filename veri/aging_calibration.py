@@ -19,7 +19,7 @@ Model (Millner 2010 stres yapısı, NMC811/SiOx için uyarlanmış):
 Kullanım:  pip install pandas scipy matplotlib openpyxl
            python aging_calibration.py
 Girdi:     kirkaldy_ozet/ (indir_ozet.py çıktısı) ve experiment_metadata.xlsx
-Çıktı:     aging_params.json, ../simulink/sonuclar/aging_*.png
+Çıktı:     aging_params.json, ../results/aging_*.png
 """
 import os, glob, json
 import numpy as np, pandas as pd
@@ -29,7 +29,7 @@ from rainflow import rainflow
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, 'kirkaldy_ozet')
-FIG  = os.path.join(HERE, '..', 'simulink', 'sonuclar'); os.makedirs(FIG, exist_ok=True)
+FIG  = os.path.join(HERE, '..', 'results'); os.makedirs(FIG, exist_ok=True)
 META = os.path.join(HERE, 'experiment_metadata.xlsx')
 REF  = os.path.join(HERE, '..', 'simulink', 'twin_reference.csv')
 

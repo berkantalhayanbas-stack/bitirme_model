@@ -2,7 +2,7 @@
 %   A) Akım sınırlayıcı: I_allow_dis düşünce paket akımı da düşmeli (ve ısınma azalmalı).
 %   B) Zayıf hücre: derin deşarjda zayıf seri grup 2.8 V sınırına ortalamadan önce ulaşmalı.
 %   Önkoşul: build_bms_model (Current_Limiter ve Weak_on içeren sürüm).
-%   Tüm ekran ve grafik çıktıları İngilizcedir; şekiller sonuclar/ klasörüne.
+%   Tüm ekran ve grafik çıktıları İngilizcedir; şekiller ../results/ klasörüne.
 
 bms_init;
 V_LIM = P.v_min;                              % tasarım alt sınırı 2.8 V

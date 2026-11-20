@@ -9,7 +9,7 @@
 %     1) cooling_fault'ta T_core kestirim hatası < 1 °C (60 s sonrası, maks.)
 %     2) Soğutma arızası Ru_hat > 2 x nominal ile algılanır, normal/hot_day'de yanlış alarm yok
 %   Önkoşul: build_bms_model (Thermal_Observer içeren sürüm).
-%   Çıktılar İngilizce; şekil sonuclar/ klasörüne, veriler thermal_sonuclari.mat'a.
+%   Çıktılar İngilizce; şekil ../results/ klasörüne, veriler thermal_sonuclari.mat'a.
 
 bms_init;
 RU_ALARM = 2 * P.ru;                         % 18 K/W

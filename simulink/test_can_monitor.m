@@ -12,7 +12,7 @@
 %      C6 açılıştan itibaren mesaj yok  -> SAFE 2.0 s (açılış süresi)
 %      Hepsinde SAFE kalıcı, I_allow = 0. Beklenen anlar Python closed_loop.py ile aynı.
 %   Önkoşul: build_bms_model (CAN_Rx bloğu içeren sürüm).
-%   Çıktılar İngilizce; şekil sonuclar/can_monitor.png
+%   Çıktılar İngilizce; şekil ../results/can_monitor.png
 
 % ================================================================== A) birim test vektörleri
 V = readtable('can_monitor_vectors.csv');

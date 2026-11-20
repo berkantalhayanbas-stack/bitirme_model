@@ -11,7 +11,7 @@ pip install numpy pandas scipy scikit-learn matplotlib openpyxl
 ```
 
 ## Adımlar
-Sırayla çalıştır, her birinin çıktısını oku. Grafikler `simulink/sonuclar/` klasörüne kaydedilir.
+Sırayla çalıştır, her birinin çıktısını oku. Grafikler `results/` klasörüne kaydedilir.
 
 | Adım | Komut | Öğreneceğin kavram |
 |---|---|---|

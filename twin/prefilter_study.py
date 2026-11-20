@@ -27,7 +27,7 @@ from sensors import measure
 from ekf import PackEKF
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FIG = os.path.join(HERE, "..", "simulink", "sonuclar")
+FIG = os.path.join(HERE, "..", "results")
 FS, DT = 10.0, 0.1
 ref = pd.read_csv(os.path.join(HERE, "..", "simulink", "twin_reference.csv"))
 I_STD = ref.i_pack.values
@@ -145,7 +145,7 @@ ax[1].set_xlabel("Filter group delay [s]"); ax[1].set_ylabel("Entries into the a
 ax[1].set_title("Trade-off: chatter vs detection delay", fontsize=10)
 ax[1].grid(alpha=.3); ax[1].legend(fontsize=8)
 fig.tight_layout(); fig.savefig(os.path.join(FIG, "prefilter_tradeoff.png"), dpi=200)
-print("\nSaved: results/prefilter_study.csv, simulink/sonuclar/prefilter_tradeoff.png")
+print("\nSaved: results/prefilter_study.csv, results/prefilter_tradeoff.png")
 for fc in (0.5, 0.1):
     b, a = signal.butter(2, fc, fs=FS)
     print(f"Butterworth 2nd order {fc} Hz @ 10 Hz: b = {np.round(b, 8)}, a = {np.round(a, 8)}")

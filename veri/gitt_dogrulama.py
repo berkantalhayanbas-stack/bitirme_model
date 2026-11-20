@@ -3,7 +3,7 @@ Aynı akım profili modele verilir, ölçülen gerilimle karşılaştırılır (
   model    : bms_config.h (R1 9,3 mOhm / 10 s, R2 12 mOhm / 180 s)
   darbe    : gitt_fit.py darbe uydurması (40-60 % SOC medyanı)
   dinlenme : gitt_fit.py dinlenme uydurması
-R0 her üçünde Kirkaldy 0,1 s değeri. Hücre A-H, RPT0, 25 °C. Şekil: gitt_dogrulama.png
+R0 her üçünde Kirkaldy 0,1 s değeri. Hücre A-H, RPT0, 25 °C. Şekil: ../results/gitt_dogrulama.png
 """
 import glob
 import os
@@ -72,7 +72,7 @@ try:
         a.set_ylabel("Cell voltage [V]")
     ax[0].legend(fontsize=8); ax[1].set_xlabel("time [h]")
     fig.suptitle("LG M50T 25-pulse GITT (0.5C, 25 °C): model vs measurement")
-    fig.tight_layout(); fig.savefig(os.path.join(HERE, "gitt_dogrulama.png"), dpi=130)
-    print("sekil: gitt_dogrulama.png")
+    fig.tight_layout(); fig.savefig(os.path.join(HERE, "..", "results", "gitt_dogrulama.png"), dpi=130)
+    print("sekil: ../results/gitt_dogrulama.png")
 except Exception as e:
     print("sekil yok:", e)

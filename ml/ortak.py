@@ -13,7 +13,7 @@ import pandas as pd
 from scipy.optimize import least_squares
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FIG = os.path.join(HERE, "..", "simulink", "sonuclar")
+FIG = os.path.join(HERE, "..", "results")
 os.makedirs(FIG, exist_ok=True)
 
 # Her deneyin ortalama hücre gerilimi (takvim yaşlanması terimi için), aging_params.json'dan

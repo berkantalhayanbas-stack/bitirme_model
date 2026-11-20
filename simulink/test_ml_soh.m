@@ -12,7 +12,7 @@
 %   eğitimde vardı. Görülmemiş koşuldaki dürüst hata 3. adımdaki çapraz doğrulamadır
 %   (RMSE ~%3). Python demosu her hücre için koşulunu dışarıda bırakarak eğitir.
 %   Önkoşul: build_bms_model (Rint_Estimator + SOH_ML içeren sürüm).
-%   Çıktılar İngilizce; şekil sonuclar/ klasörüne, veriler ml_soh_sonuclari.mat'a.
+%   Çıktılar İngilizce; şekil ../results/ klasörüne, veriler ml_soh_sonuclari.mat'a.
 
 bms_init;
 % cell, SOH, R ratio, usage = [efc days T_mean SOC_mean DoD]   (ml/dataset.csv)

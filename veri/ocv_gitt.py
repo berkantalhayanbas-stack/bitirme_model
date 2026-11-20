@@ -7,7 +7,7 @@ Adaylar (modelin 23 noktalı SOC ızgarasında):
   karma  : gitt noktaları + aralarında c10 eğrisinin şekli (gitt'e kaydırılmış)
 Doğrulama: aynı 2-RC (model parametreleri) ile hücre E-H'nin GITT gerilimi simüle edilir (tabloyu
 kuran hücreler doğrulamaya girmez), RMSE (V > 2,9 V). SOC: tam şarjın sonu = 1, sonrası Coulomb sayımı.
-Çıktı: ocv_tablolari.csv, ocv_dogrulama.png
+Çıktı: ocv_tablolari.csv, ../results/ocv_dogrulama.png
 """
 import glob
 import os
@@ -108,7 +108,7 @@ try:
     ax[1].plot(P[:, 0], 1e3 * (P[:, 1] - np.interp(P[:, 0], SOC, ocv_gitt)), "k.", ms=2, label="GITT relaxed points")
     ax[1].set_ylim(-80, 120); ax[1].set_xlabel("SOC"); ax[1].set_ylabel("OCV - gitt [mV]"); ax[1].legend(fontsize=8)
     fig.suptitle("OCV table candidates for LG M50T (Kirkaldy et al. 2024) - cross-validated on cells E-H")
-    fig.tight_layout(); fig.savefig(os.path.join(HERE, "ocv_dogrulama.png"), dpi=130)
-    print("sekil: ocv_dogrulama.png")
+    fig.tight_layout(); fig.savefig(os.path.join(HERE, "..", "results", "ocv_dogrulama.png"), dpi=130)
+    print("sekil: ../results/ocv_dogrulama.png")
 except Exception as e:
     print("sekil yok:", e)

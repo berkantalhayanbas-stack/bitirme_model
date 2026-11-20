@@ -44,7 +44,7 @@ Kitap değerleriyle eşikler: 1,25 V × 200k / (alt kısım) → **2,50 V, 3,40 
 - OV bilerek 4,21 V: tam şarjda (CV sonu 4,20 V) yanlış alarm vermez, veri sayfası koruması 4,25 V'un altında kalır.
 - Dengeleme akımı 10 Ω ile 0,45 A. Bölücülerin toplam çekişi ~21 µA.
 - **Tolerans (Monte Carlo):** %1 dirençle OV eşiği ±75 mV oynuyor; devrelerin %3,9'unda 4,25 V'un üstüne kayıyor. %0,1 direnç ve %0,2 referansla ±24 mV, 4,25 V aşımı yok. Sonuç: analog çözüm hassas direnç olmadan güvenli değil. AFE entegreleri (ör. LTC6811 < 1,2 mV toplam hata) bu yüzden tercih ediliyor.
-- Grafik: simulink/sonuclar/analog_monitor_m50t.png
+- Grafik: results/analog_monitor_m50t.png
 
 ## 3. Entegre seçimleri (docx + Product_option.xlsx)
 | Parça | Durum (üretici sayfası) | Not |

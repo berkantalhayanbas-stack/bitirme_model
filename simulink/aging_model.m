@@ -11,7 +11,7 @@
 %     5. Takvim: araç günün geri kalanında başlangıç SOC'sinde, ortam sıcaklığında park eder
 %     6. N gün sonra kayıp: fade = a*(N*E)^z + alpha(V_park, T_amb)*N^0.75 ; ömür sonu (%20)
 %
-%   Tüm ekran ve grafik çıktıları İngilizcedir (tez dili); şekiller sonuclar/ klasörüne.
+%   Tüm ekran ve grafik çıktıları İngilizcedir (tez dili); şekiller ../results/ klasörüne.
 
 load('senaryo_sonuclari.mat', 'R', 'sc');
 A        = aging_params();
@@ -77,7 +77,7 @@ fprintf(['Note: temperatures above %.1f °C exceed the calibration data; the Mil
 save('aging_sonuclari.mat', 'res', 'A');
 
 % ---------------------------------------------------------------- grafikler
-if ~exist('sonuclar', 'dir'), mkdir('sonuclar'); end
+if ~exist(fullfile('..', 'results'), 'dir'), mkdir(fullfile('..', 'results')); end
 lbl = string({sc.aciklama});
 
 f1 = figure('Name', 'Aging: relative rate', 'Color', 'w', 'Position', [60 60 900 420]);
@@ -102,4 +102,4 @@ xlabel('Years (one scenario run per day)'); ylabel('Capacity fade [%]'); ylim([0
 title('Projected capacity fade if each scenario is repeated daily (incl. parking)');
 legend('Location', 'eastoutside');
 save_fig(f2, 'aging_projected_fade.png');
-fprintf('Figures saved to sonuclar/, results saved to aging_sonuclari.mat\n');
+fprintf('Figures saved to ../results/, results saved to aging_sonuclari.mat\n');

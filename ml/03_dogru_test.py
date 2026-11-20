@@ -157,4 +157,4 @@ print("Accuracy is about the same; the constrained tree cannot learn physically 
 print("(e.g. 'lower resistance -> lower SOH') and does not degrade as quickly with depth.")
 print("-> Final model for step 4: depth 3, min 10 samples per leaf, monotonic in efc, days, rr.")
 
-print("\nSaved: ml/cv_results.csv, simulink/sonuclar/ml_cv_leakage.png, ml_model_comparison.png")
+print("\nSaved: ml/cv_results.csv, results/ml_cv_leakage.png, ml_model_comparison.png")

@@ -151,4 +151,4 @@ ax[1].set_ylim(-4, 4); ax[1].set_ylabel("SOC error [%]"); ax[1].set_xlabel("Time
 ax[1].grid(alpha=.3); ax[1].legend()
 fig.tight_layout()
 fig.savefig(os.path.join(FIG, "ml_aged_pack_soc.png"), dpi=200)
-print("\nSaved: ml/aged_demo_results.csv, simulink/sonuclar/ml_aged_pack_soc.png")
+print("\nSaved: ml/aged_demo_results.csv, results/ml_aged_pack_soc.png")

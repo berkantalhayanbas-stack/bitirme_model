@@ -14,7 +14,7 @@
 %
 %   Çıktılar:
 %     - Komut penceresinde özet tablo
-%     - sonuclar/ klasörüne 3 grafik (PNG)
+%     - ../results/ klasörüne 3 grafik (PNG)
 %     - senaryo_sonuclari.mat: tüm zaman serileri (yaşlanma modeli ve ML için)
 
 bms_init;                                   % P, Ts, ref, sensör parametreleri
@@ -76,7 +76,7 @@ disp(ozet);
 save('senaryo_sonuclari.mat', 'R', 'ozet', 'sc');
 
 % ---------------------------------------------------------------- Grafikler
-if ~exist('sonuclar', 'dir'), mkdir('sonuclar'); end
+if ~exist(fullfile('..', 'results'), 'dir'), mkdir(fullfile('..', 'results')); end
 renk = lines(N);
 
 f1 = figure('Name', 'Scenarios: core temperature', 'Color', 'w', 'Position', [60 60 900 450]);
@@ -116,7 +116,7 @@ end
 xlabel('Time [min]');
 save_fig(f3, 'senaryo_EKF.png');
 
-fprintf('Figures saved to sonuclar/, data saved to senaryo_sonuclari.mat\n');
+fprintf('Figures saved to ../results/, data saved to senaryo_sonuclari.mat\n');
 
 % ---------------------------------------------------------------- Yerel fonksiyon
 function s = senaryo(ad, aciklama, T_amb, Ru, SOC0, I)
