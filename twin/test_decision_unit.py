@@ -28,15 +28,25 @@ def seq(n, **over):
     return d
 
 
-def run(test_id, inp):
+N_ZERO = 10      # açılış sıfır akım kontrolü (A9): kontaktör açık, I_allow = 0
+
+
+def run(test_id, inp, i_zero=0.0):
+    """Her testin önüne N_ZERO örneklik açılış kontrolü eklenir (ilk örneğin girdileri, ölçülen
+    akım i_zero: kontaktör açıkken akım kesin 0, ölçülen = sensör ofseti). Dönen çıktı bu örnekleri
+    içermez (testlerin zaman indeksleri değişmez); test vektörlerine ise girer."""
     dec = Decision()
-    n = len(inp["I_meas"])
+    pre = {c: np.full(N_ZERO, inp[c][0]) for c in COLS}
+    pre["I_meas"][:] = i_zero
+    full = {c: np.concatenate([pre[c], inp[c]]) for c in COLS}
+    n = len(full["I_meas"])
     out = np.zeros((n, 5))
     for k in range(n):
-        out[k] = dec.step(*[inp[c][k] for c in COLS])
-        rows.append(dict(test=test_id, reset=int(k == 0), **{c: inp[c][k] for c in COLS},
+        out[k] = dec.step(*[full[c][k] for c in COLS])
+        rows.append(dict(test=test_id, reset=int(k == 0), **{c: full[c][k] for c in COLS},
                          state=out[k, 0], i_dis=out[k, 1], i_chg=out[k, 2], psi=out[k, 3], cause=out[k, 4]))
-    return out
+    run.pre = out[:N_ZERO]
+    return out[N_ZERO:]
 
 
 def check(test_id, name, ok, detail):
@@ -154,6 +164,19 @@ check(14, "measurement-anchored core limit",
       and tss[k_s - 10] <= 60 and (o2[:, 0] != 4).all() and (o2[:, 0] != 3).all() and (o3[:, 0] != 4).all(),
       f"LIMP at T_meas {tm[k_l]:.1f} °C (T_ss {tss[k_l]:.1f}), SAFE at T_meas {tm[k_s]:.1f} °C "
       f"(T_ss {tss[k_s]:.1f}), Tc_hat 30 °C; 0.5 s spike and invalid sensor ignored")
+
+# U15 açılış sıfır akım kontrolü (A9): kontaktör açıkken I_allow = 0; ölçülen ofset 2 A ->
+# kabul (NORMAL, sonra rampa), 4 A ya da -4 A -> sensör arızası LIMP (neden 32), kalıcı
+res = {}
+for i0 in (2.0, 4.0, -4.0):
+    o = run(15, seq(100), i_zero=i0)
+    res[i0] = (run.pre, o)
+p2, o2 = res[2.0]
+ok = (all((r[0][:, 1:3] == 0).all() for r in res.values()) and (o2[:, 0] == 1).all() and o2[0, 1] > 0
+      and all((r[1][:, 0] == 3).all() and (r[1][:, 4].astype(int) & 32).all() for k, r in res.items() if k != 2.0))
+check(15, "start-up zero-current check", ok,
+      f"I_allow 0 A for {N_ZERO * TS:.1f} s; offset 2 A -> {NAMES[int(o2[-1, 0])]}, "
+      f"4 A -> {NAMES[int(res[4.0][1][-1, 0])]}, -4 A -> {NAMES[int(res[-4.0][1][-1, 0])]} (cause 32)")
 
 V = pd.DataFrame(rows)
 V.to_csv(os.path.join(HERE, "..", "simulink", "decision_vectors.csv"), index=False)

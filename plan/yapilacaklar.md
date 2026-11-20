@@ -28,7 +28,9 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
        ~60 kJ/mol'e kadar, nitel olarak uyumlu); tezde tam metinden sayı alınmalı.
    [x] **Kart:** yeni Ea'lı twin_emu ile butonlar.txt 5/5 PASS (soğutma alarmı 121,8 s; A2 LIMP
        gerçek çekirdek 55,6 °C, SAFE 60,5 °C).
-   [ ] LM35 ~38 °C okuyor (oda bu kadar sıcak mı, sensör ısınan bir parçaya mı yakın?) kontrol et.
+   [x] LM35 (20 Kasım): 38-43 °C okuyordu, sensör değiştirildi -> ~25 °C. Sahte sıcak ortam D3'ü
+       hızlandırıyordu: soğuk (25 °C) pakette soğutma alarmı kartta 391 s (Python ~490 s; ısı akışı az,
+       R_u geç gözlenir), dün 121 s. butonlar.txt D3 beklemesi 300 -> 700 s.
 3. [x] **Duyarlılık analizi, 19 Kasım** (twin/sensitivity.py, results/sensitivity.csv/.png): 24
        bozulma x 4 senaryo. Kabul ölçütleri (S2 < 55 °C, S3 >= 2,8 V, S4 <= 4,2 V, yanlış SAFE yok)
        25/25 korunuyor. SOC RMSE (taban %0,29) en çok R0 ±%20 (%0,94 / %2,09), R1, R2 ±%50 (~%1,1-1,7)
@@ -37,13 +39,19 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
        T değişim hızı = hızlı süzgeçten (tau 0,3 s) > 2 °C fark, 3 örnek üst üste. Duyarlılık
        analizinde sahte LIMP kalmadı (25/25 durumda %100 NORMAL); R0 x1,2 SOC RMSE %2,09 -> %0,29.
        Python == C (SOC farkı <= 0,0013 puan), MATLAB A + B1-B8 PASS, PIL PASS (bms_step 86 us).
-   [ ] **LED'ler (kullanıcı, 19 Kasım akşamı):** "LED'ler hep yanıyor, sorun var gibi". O an ECU DERATE,
+   [x] **LED'ler (kullanıcı, 19 Kasım akşamı):** "LED'ler hep yanıyor, sorun var gibi". O an ECU DERATE,
        kısa far PWM %15,4 (ölçülen de %15,4, 999 Hz), uzun far %0, kontaktör kapalı. Yarın kartta bak:
        %15'te de tam parlak mı görünüyor (algı), PWM gerçekten LED'e ulaşıyor mu (ULN IN1/OUT1, PA8
        TIM1), uzun far hattı, SAFE'te sönüyor mu, kablolama. Gerekirse parlaklık eğrisi (gamma).
-   [ ] **A9 Gerçek akım kayması tespiti zayıf:** EKF kayma durumu yavaş ve küçük kestiriyor: ±8 A hiç,
-       +10 A ~1040 s'de, -12 A 1200 s'de hâlâ yok (SOC hatası %3-5). Öneri: kontaktör kapanmadan
-       önce (akım kesin 0) sıfır noktası kontrolü (endüstri yöntemi) + EKF b_I'nın bununla başlatılması.
+       20 Kasım: SAFE'te de yanıyordu (ECU kendi pininde %0 ölçüyordu -> kablolama). LM35 değişimi
+       sırasında düzeldi (büyük olasılıkla gevşek kablo). Gama zaten var (seviye^2,5; alt sınır %3,1 PWM).
+   [x] **A9 açılış sıfır akım kontrolü (20 Kasım):** ilk 1 s kontaktör açık, I_allow = 0; ölçülen ortalama
+       = ofset. EKF b_I bununla başlar (P 0,05 A^2), |ofset| > 3 A -> sensör arızası LIMP (neden 32),
+       ofset yine telafi edilir. Tarama (twin/bias_sweep.py, results/bias_sweep.png): tespit süresi
+       hiç / 1000-1660 s -> 0,9 s; S1 SOC RMSE ±3 A içinde %0,29-0,30 (önce %0,14-0,83), büyük ofsette
+       %0,5 (önce %1,0-2,2). Python == C == MATLAB, U15, PIL girdileri kapalı çevrimden yeniden
+       üretildi (tools/pil_test/make_pil_inputs.py; C13 de kapandı), PIL PASS (86 us).
+       Sınır: sürüş sırasında sonradan oluşan kaymayı yine yalnız yavaş EKF görür.
    [ ] (eski) **A7 Sahte akım sensörü teşhisi:** direnç uyumsuzluğunda (R0 ±%20, R1 x1,5, τ2 x0,5) EKF farkı
        akım kayması b_I'ya yüklüyor, |b_I| > 5 A -> neden 32 LIMP (S1'in %11-36'sı). Yaşlanmış pakette
        olur. Aday: çevrimiçi direnç kestiricisinin (rr) R0'ı EKF'ye vermesi (uyarlamalı R0) ve/veya
@@ -67,7 +75,7 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
 12. [ ] **Sürücü uyarısı:** buzzer (DERATE kısa bip, SAFE sürekli).
 
 ## C. Doğrulama, demo, belge
-13. [ ] PIL girdi senaryolarını (tools/pil_test/data/*_in.csv) yeni OCV'li ikizle yeniden üret.
+13. [x] (20 Kasım, A9 ile) PIL girdi senaryolarını (tools/pil_test/data/*_in.csv) yeni OCV'li ikizle yeniden üret.
 14. [ ] can_replay testi (mcp2515_bridge) güncel kodla.
 15. [ ] FMEA tablosu (tez eki): bugünkü arıza enjeksiyonlarının hepsi sistemli.
 16. [ ] Parametre tablosuna "kaynak / ölçüm / varsayım" sütunu (plan/parametre_tablosu.tex).

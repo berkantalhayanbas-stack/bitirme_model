@@ -1,4 +1,4 @@
-function [SOC_est, bias_est, innov, rejected] = ekf_soc(I_meas, V_meas, T_meas, T_valid, Ts_hat_prev, Gate_on, Q_scale, R_scale)
+function [SOC_est, bias_est, innov, rejected] = ekf_soc(I_meas, V_meas, T_meas, T_valid, Ts_hat_prev, Gate_on, Q_scale, R_scale, Zero_on)
 %EKF_SOC  Paket seviyesi 5 durumlu Genişletilmiş Kalman Filtresi.
 %   x = [SOC; V1; V2; b_I; k_R]   (b_I: akım sensörü kayması, k_R: gerçek R0 / nominal R0)
 %   k_R olmadan R0 uyumsuzluğu (yaşlanma) b_I'ya yükleniyor, sahte sensör arızası veriyordu (A7).
@@ -14,7 +14,7 @@ function [SOC_est, bias_est, innov, rejected] = ekf_soc(I_meas, V_meas, T_meas, 
 %   Not (kod üretimi): her kalıcı değişken kendi isempty kontrolüyle başlatılır.
 
 %#codegen
-persistent P x Pk n_rej
+persistent P x Pk n_rej n_zero i0_sum
 if isempty(P)
     P = bms_param_struct();
 end
@@ -26,6 +26,12 @@ if isempty(Pk)
 end
 if isempty(n_rej)
     n_rej = 0;
+end
+if isempty(n_zero)
+    n_zero = 0;
+end
+if isempty(i0_sum)
+    i0_sum = 0;
 end
 
 % ---- Paket eşdeğer parametreleri (sabit, her adımda ucuz) ----
@@ -90,6 +96,18 @@ else
     Pk    = IKC * Pp * IKC' + P.ekf_R * (K * K');   % Joseph formu
 end
 rejected = double(rej);
+
+% açılış sıfır akım kalibrasyonu (A9): karar ilk dec_t_zero s I_allow = 0 tutar (kontaktör açık);
+% ortalama ölçülen akım = ofset -> kayma durumu bununla başlar (büyükse karar ayrıca LIMP verir)
+nz = round(P.dec_t_zero / P.Ts);
+if Zero_on > 0.5 && n_zero < nz      % Zero_on: karar döngüde (ilk 1 s I_allow = 0)
+    i0_sum = i0_sum + I_meas;
+    n_zero = n_zero + 1;
+    if n_zero == nz
+        x(4) = i0_sum / nz;
+        Pk(4, :) = 0;  Pk(:, 4) = 0;  Pk(4, 4) = P.ekf_p_b0;
+    end
+end
 
 SOC_est  = x(1);
 bias_est = x(4);

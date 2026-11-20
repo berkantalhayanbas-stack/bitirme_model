@@ -26,7 +26,7 @@ PEQ = PackTwin(c0).pack_equivalent()
 
 
 def run(I_dem, T_amb=25.0, ru_factor=1.0, soc0=0.8, weak=False, use_decision=True,
-        fault=None, t_fault=1200.0, seed=7, can=None, truth=None, noise=None):
+        fault=None, t_fault=1200.0, seed=7, can=None, truth=None, noise=None, zero_check=True):
     """fault: None | 't_open' (NTC kopuk, -40 °C) | 'heat' (t_fault'tan sonra modellenmemiş dış ısı:
            iki düğüm 0,05 °C/örnek, yüzey 62 °C'ye kadar = twin_emu A2 butonu) | 'q_int' (çekirdeğe
            5 W/hücre ek ısı: iç kısa devre başlangıcı benzeri; gözlemcinin modelinde yok).
@@ -34,7 +34,8 @@ def run(I_dem, T_amb=25.0, ru_factor=1.0, soc0=0.8, weak=False, use_decision=Tru
          (mode 1 kayıp, 2 CRC bozuk, 3 donmuş sayaç; msg 1 = 0x101, 2 = 0x102, 3 = ikisi).
     truth: duyarlılık analizi için ikizin (gerçeğin) parametre çarpanları, ör. {"r0": 1.2, "ru": 2};
            "ocv_off" [V] OCV tablosuna eklenir. ECU nominal parametrelerle çalışmaya devam eder.
-    noise: ölçüm gürültüsü/kayması, varsayılan dict(sv=0.25, si=0.5, bias=0.5, st=0.3, sc=0.005)."""
+    noise: ölçüm gürültüsü/kayması, varsayılan dict(sv=0.25, si=0.5, bias=0.5, st=0.3, sc=0.005).
+    zero_check: açılış sıfır akım kontrolü (A9); False = eski davranış (karşılaştırma için)."""
     rng = np.random.default_rng(seed)
     tr = dict(truth or {})
     ocv_off = tr.pop("ocv_off", 0.0)
@@ -46,11 +47,14 @@ def run(I_dem, T_amb=25.0, ru_factor=1.0, soc0=0.8, weak=False, use_decision=Tru
     wk = PackTwin(replace(cell, capacity_ah=base.capacity_ah * 0.9, r0=base.r0 * 1.2,
                           r1=base.r1 * 1.2, r2=base.r2 * 1.2),
                   PackConfig(t_amb=T_amb), soc0=soc0) if weak else None
-    ekf = PackEKF(PEQ, COEF, 19, DT, soc0=0.5, estimate_r=True)
+    ekf = PackEKF(PEQ, COEF, 19, DT, soc0=0.5, estimate_r=True,
+                  zero_n=round(1.0 / DT) if use_decision and zero_check else 0)   # A9: kontaktör açıkken ofset
     th = None
     diag = SensorDiag()
     dec = Decision()
     p = dec.p
+    if not zero_check:
+        p.t_zero = 0.0
     i_dis, i_chg = (0.0, 0.0) if use_decision else (dec.I_nom_dis, dec.I_nom_chg)
     q = lambda x, lsb: np.round(x / lsb) * lsb
     n = len(I_dem)

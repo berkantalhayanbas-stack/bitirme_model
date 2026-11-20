@@ -130,9 +130,9 @@ add_block('simulink/Discrete/Unit Delay', L('Delay_Ts'), 'InitialCondition', 'T_
 add_block('simulink/User-Defined Functions/MATLAB Function', L('EKF'));
 cfg = get_param(L('EKF'), 'MATLABFunctionConfiguration');
 cfg.FunctionScript = sprintf([ ...
-    'function [SOC_est, bias_est, innov, rejected] = ekf_blk(I_meas, V_meas, T_meas, T_valid, Ts_hat_prev, Gate_on, Q_scale, R_scale)\n' ...
+    'function [SOC_est, bias_est, innov, rejected] = ekf_blk(I_meas, V_meas, T_meas, T_valid, Ts_hat_prev, Gate_on, Q_scale, R_scale, Zero_on)\n' ...
     '%%#codegen\n' ...
-    '[SOC_est, bias_est, innov, rejected] = ekf_soc(I_meas, V_meas, T_meas, T_valid, Ts_hat_prev, Gate_on, Q_scale, R_scale);\n' ...
+    '[SOC_est, bias_est, innov, rejected] = ekf_soc(I_meas, V_meas, T_meas, T_valid, Ts_hat_prev, Gate_on, Q_scale, R_scale, Zero_on);\n' ...
     'end\n']);
 
 % ------------------------------------------------------------- Çekirdek sıcaklığı gözlemcisi
@@ -250,6 +250,7 @@ c('CAN_Rx/6',           'Decision/11');
 c('CAN_Rx/3',           'Decision/12');
 c('T_amb/1',            'Decision/13');
 c('Dec_on/1',           'Decision/14');
+c('Dec_on/1',           'EKF/9');           % A9: sıfır akım kalibrasyonu yalnız karar döngüdeyken (kontaktör açık)
 c('I_allow_dis/1',      'Decision/15');
 c('I_allow_chg/1',      'Decision/16');
 c('Decision/2', 'Delay_Idis/1');  c('Decision/3', 'Delay_Ichg/1');

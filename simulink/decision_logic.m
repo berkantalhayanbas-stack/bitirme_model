@@ -27,7 +27,8 @@ if isempty(P)
 end
 if isempty(D)
     D = struct('state', 1, 'n_ok', 0, 'n_lo', 0, 'n_hi', 0, 'therm_on', false, 'cool_on', false, 'n_run', 0, 'n_hl', 0, 'n_hs', 0, ...
-               'f_ds', false, 'f_sop_dis', false, 'f_sop_chg', false, 'i_dis', 0, 'i_chg', 0);
+               'f_ds', false, 'f_sop_dis', false, 'f_sop_chg', false, 'i_dis', 0, 'i_chg', 0, ...
+               'n_zero', 0, 'i0_sum', 0, 'i0_ok', true, 'zero_bad', false);
 end
 ts = P.Ts;  np_ = P.Np;
 I_nom_dis = max(P.dec_I_dis) * np_;
@@ -50,6 +51,19 @@ if hard || D.state == 4
     D.state = 4;  D.i_dis = 0;  D.i_chg = 0;
     state = 4;  I_allow_dis = 0;  I_allow_chg = 0;  psi = 1;  cause = 128;
     return;
+end
+
+% ---------------------------------------------------- açılış sıfır akım kontrolü (A9)
+% ilk dec_t_zero s kontaktör açık (I_allow = 0): akım kesin 0, ölçülen ortalama = sensör ofseti
+n_zero = round(P.dec_t_zero / ts);
+zeroing = D.n_zero < n_zero;
+if zeroing
+    D.i0_sum = D.i0_sum + I_meas;
+    D.i0_ok = D.i0_ok && I_valid >= 0.5;
+    D.n_zero = D.n_zero + 1;
+    if D.n_zero == n_zero
+        D.zero_bad = D.i0_ok && abs(D.i0_sum / n_zero) > P.dec_zero_max;
+    end
 end
 
 % ---------------------------------------------------- veri sayfası sınırları
@@ -98,7 +112,7 @@ tgt_dis = max(0, min(i_ds_dis * (1 - psi_s), sop_dis));
 tgt_chg = max(0, min(i_ds_chg * (1 - psi_s), sop_chg));
 
 % ---------------------------------------------------- LIMP-HOME
-sensor_bad = T_valid < 0.5 || I_valid < 0.5 || abs(bias_est) > P.dec_bias_max;
+sensor_bad = T_valid < 0.5 || I_valid < 0.5 || abs(bias_est) > P.dec_bias_max || D.zero_bad;
 empty = SOC_est < P.dec_soc_empty;
 hot_ss = D.n_hl >= n_hard;
 limp = sensor_bad || Tc_hat > P.dec_T_limp || hot_ss || empty;
@@ -133,6 +147,9 @@ end
 % ---------------------------------------------------- rampa (düşüş anında, artış ≤ ramp_up)
 D.i_dis = ramp(D.i_dis, tgt_dis, P.dec_ramp_up * ts);
 D.i_chg = ramp(D.i_chg, tgt_chg, P.dec_ramp_up * ts);
+if zeroing
+    D.i_dis = 0;  D.i_chg = 0;
+end
 
 state = D.state;
 I_allow_dis = D.i_dis;

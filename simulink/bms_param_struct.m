@@ -74,6 +74,7 @@ P.soc0_ekf  = 0.50;     % EKF'ye bilerek yanlış başlangıç
 P.ekf_P0 = [0.1 0.01 0.01 1.0 0.01];   % son durum k_R (R0 ölçeği): ±%10 başlangıç belirsizliği
 P.ekf_Q  = [1e-10 1e-6 1e-6 1e-8 1e-8];
 P.ekf_kr_min = 0.5;  P.ekf_kr_max = 2.0;
+P.ekf_p_b0 = 0.05;     % [A^2] sıfır akım kalibrasyonu sonrası kayma belirsizliği
 P.ekf_R  = 0.25^2;      % paket gerilim ölçüm varyansı [V^2]
 P.ekf_gate  = 10;       % normalize inovasyon kapısı [sigma] (EMI sıçramalarını reddeder)
 P.ekf_n_rej = 5;        % 5 örnek üst üste red -> model yanlış, kapı açılır
@@ -119,6 +120,8 @@ P.dec_bias_max   = 8.0;   % [A] akım kayması makullük sınırı (5 A: direnç
 P.dec_t_exit_derate = 10; % [s] gevşetici yönde bekleme
 P.dec_t_exit_limp   = 10;
 P.dec_ramp_up    = 10;    % [A/s] I_allow artış hızı; düşüşler anında
+P.dec_t_zero     = 1.0;   % [s] açılış sıfır akım kontrolü (A9): kontaktör açık, I_allow = 0
+P.dec_zero_max   = 3.0;   % [A] |ofset| üstü: akım sensörü arızası (LIMP); altı: EKF kayması başlar
 
 % ---- Arıza enjeksiyonu (test) ----
 P.fault_spike   = 8.0;  % [V] EMI sıçraması

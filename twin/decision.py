@@ -77,6 +77,12 @@ class DecisionParams:
     # zamanlama ve rampalar
     t_exit_derate, t_exit_limp = 10.0, 10.0
     ramp_up = 10.0                        # A/s; düşüşler anında (güvenlik), artışlar rampalı (sürüş konforu)
+    # açılışta sıfır akım kontrolü (A9): kontaktör kapanmadan önce t_zero boyunca I_allow = 0, akım
+    # kesin sıfırken ölçülen ortalama = sensör ofseti. |ofset| > zero_max -> sensör arızası (LIMP);
+    # değilse EKF kayma durumu bununla başlar (ekf.py). EKF kaymayı sürüşte yavaş ve eksik buluyordu
+    # (±8 A hiç, +10 A ~1040 s'de; A3). 3 A = 300 A'lık Hall sensörünün %1'i.
+    t_zero = 1.0
+    zero_max = 3.0
 
 
 def ds_limit(T, Tb, Ib):
@@ -102,6 +108,10 @@ class Decision:
         self.I_nom_chg = max(p.I_chg) * p.np_          # 40.7 A
         self.i_dis = 0.0               # açılış: sıfırdan rampayla (öz-denetim sonrası, ~9 s)
         self.i_chg = 0.0
+        self.n_zero = 0                # sıfır akım kontrolü: geçerli örnek sayısı
+        self.i0_sum = 0.0
+        self.i0_ok = True
+        self.zero_bad = False
 
     def _band(self, flag, ratio):
         """Histerezis bandı: oran band_on altına inince bayrak kalkar, band_off üstüne çıkınca iner."""
@@ -131,6 +141,14 @@ class Decision:
             self.state = SAFE
             self.i_dis = self.i_chg = 0.0
             return self.state, 0.0, 0.0, 1.0, C_HARD
+        n_zero = round(p.t_zero / p.ts)
+        zeroing = self.n_zero < n_zero             # kontaktör açık: akım kesin 0
+        if zeroing:                                # geçersiz örnek varsa sonuç yok (I_valid zaten LIMP)
+            self.i0_sum += I_meas
+            self.i0_ok = self.i0_ok and I_valid >= 0.5
+            self.n_zero += 1
+            if self.n_zero == n_zero:
+                self.zero_bad = self.i0_ok and abs(self.i0_sum / n_zero) > p.zero_max
 
         # ---------------------------------------------------- veri sayfası sınırları
         i_ds_dis = ds_limit(Ts_hat, p.T_dis, p.I_dis) * p.np_
@@ -180,7 +198,7 @@ class Decision:
         tgt_chg = max(0.0, min(i_ds_chg * (1 - psi), sop_chg))
 
         # ---------------------------------------------------- LIMP-HOME nedenleri
-        sensor_bad = T_valid < 0.5 or I_valid < 0.5 or abs(bias_est) > p.bias_max
+        sensor_bad = T_valid < 0.5 or I_valid < 0.5 or abs(bias_est) > p.bias_max or self.zero_bad
         if sensor_bad: cause |= C_SENSOR
         if SOC_est < p.soc_empty: cause |= C_EMPTY
         hot_ss = self.n_hl >= n_hard
@@ -209,5 +227,7 @@ class Decision:
             return tgt if tgt < cur else min(tgt, cur + p.ramp_up * p.ts)
         self.i_dis = ramp(self.i_dis, tgt_dis)
         self.i_chg = ramp(self.i_chg, tgt_chg)
+        if zeroing:
+            self.i_dis = self.i_chg = 0.0
         psi_out = 1 - self.i_dis / self.I_nom_dis
         return self.state, self.i_dis, self.i_chg, psi_out, cause

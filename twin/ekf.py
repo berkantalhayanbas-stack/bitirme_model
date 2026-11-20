@@ -35,7 +35,8 @@ class PackEKF:
     def __init__(self, pack_eq, ocv_poly_cell, ns, dt, soc0=0.5,
                  estimate_bias=True, q_diag=None, r_meas=0.25 ** 2,
                  ea_r0=6200.0, ea_r1=17500.0, ea_r2=14300.0, use_temp=True, gate=10.0,
-                 estimate_r=False, p_kr=0.01, q_kr=1e-8, kr_min=0.5, kr_max=2.0):
+                 estimate_r=False, p_kr=0.01, q_kr=1e-8, kr_min=0.5, kr_max=2.0,
+                 zero_n=0, zero_max=3.0, p_b0=0.05):
         self.Q_ah = pack_eq["Q_pack_Ah"]
         self.R0_ref = self.R0 = pack_eq["R0_pack"]
         self.ea_r0, self.ea_r1, self.ea_r2, self.use_temp = ea_r0, ea_r1, ea_r2, use_temp
@@ -62,6 +63,12 @@ class PackEKF:
         if q_diag is None:
             q_diag = [1e-10, 1e-6, 1e-6, 1e-8, q_kr][:n]
         self.Qn = np.diag(q_diag)
+        # açılış sıfır akım kalibrasyonu (A9): karar ilk zero_n örnekte I_allow = 0 tutar (kontaktör
+        # açık), ölçülen ortalama akım = sensör ofseti -> kayma durumu bununla başlar, belirsizliği
+        # ortalamanınki kadar (si^2/N ~ 0,025 A^2). |ofset| > zero_max ise karar ayrıca sensör arızası
+        # (LIMP) verir; ofset yine telafi edilir (bilinen hata, SOC kestirimi bozulmasın).
+        self.zero_n, self.zero_max, self.p_b0 = zero_n, zero_max, p_b0
+        self.n_zero, self.i0_sum = 0, 0.0
         self.Rn = r_meas
         self.a1 = np.exp(-dt / (self.R1 * self.C1))
         self.a2 = np.exp(-dt / (self.R2 * self.C2))
@@ -73,6 +80,17 @@ class PackEKF:
         return self.ns * self.dp(np.clip(soc, 0, 1))
 
     def step(self, i_meas, v_meas, t_surf=25.0):
+        out = self._step(i_meas, v_meas, t_surf)
+        if self.nb and self.n_zero < self.zero_n:
+            self.i0_sum += i_meas
+            self.n_zero += 1
+            if self.n_zero == self.zero_n:
+                self.x[3] = self.i0_sum / self.zero_n
+                self.P[3, :] = 0.0; self.P[:, 3] = 0.0; self.P[3, 3] = self.p_b0
+                out = (self.x.copy(), out[1])
+        return out
+
+    def _step(self, i_meas, v_meas, t_surf=25.0):
         x, dt = self.x, self.dt
         # R0(T): CAN 0x101'den gelen yüzey sıcaklığıyla Arrhenius düzeltmesi
         if self.use_temp:
