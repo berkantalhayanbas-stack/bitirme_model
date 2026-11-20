@@ -75,6 +75,10 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
 12. [ ] **Sürücü uyarısı:** buzzer (DERATE kısa bip, SAFE sürekli).
 
 ## C. Doğrulama, demo, belge
+0. [x] **Kart üstü Monte Carlo (20 Kasım):** APP_MC = 8, 1000 rastgele kapalı çevrim koşusu (600 s, ikiz +
+       bms_step aynı STM32'de, 623x gerçek zaman, 16 dk). 1000/1000 PASS; kart == PC hüküm 1000/1000, tüm
+       alanlar 991/1000 (kalan 9: SOC hatasının son hanesi). Dış ısıda LIMP gerçek çekirdek 54,1-55,4 °C,
+       SAFE 59,2-60,4 °C. results/mc_overview.png, mc_summary.txt. Sıradaki: UART telemetri + gateway.
 13. [x] (20 Kasım, A9 ile) PIL girdi senaryolarını (tools/pil_test/data/*_in.csv) yeni OCV'li ikizle yeniden üret.
 14. [ ] can_replay testi (mcp2515_bridge) güncel kodla.
 15. [ ] FMEA tablosu (tez eki): bugünkü arıza enjeksiyonlarının hepsi sistemli.

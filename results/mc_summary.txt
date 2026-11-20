@@ -1,0 +1,26 @@
+On-target Monte Carlo validation: 1000 randomized closed-loop runs (600 s each, Ts 0.1 s), seed 1
+Plant: 19S12P digital twin (bms/sim/twin_model.c); ECU: bms_step (bms/common), same C code on both targets.
+Randomized per run: T_amb 0-40 C, SOC0 35-95 %, drive severity x0.6-1.6, cycle offset, capacity +-2 %,
+R +-5 %, current-sensor offset +-2.5 A; one fault (none 30 %, cooling 20 %, ext. heat 15 %, NTC open 15 %,
+large current offset 4-12 A 20 %) at a random time 60-480 s.
+
+Results (board):
+          runs  PASS  react_ms median  react_ms max  detected %  SOC err max %  T_core max C
+fault                                                                                       
+cooling    199   199         139800.0      456900.0       48.74           2.19          44.4
+ext_heat   151   151          80200.0      126600.0      100.00           2.28          73.5
+i_offset   202   202            900.0         900.0      100.00           1.86          40.3
+none       297   297              NaN           NaN        0.00           1.62          44.2
+ntc_open   151   151              0.0           0.0      100.00           1.71          43.9
+ALL       1000  1000              NaN           NaN         NaN           2.28          73.5
+External heat: true core at LIMP 54.1-55.4 C (median 54.8, limit 55), at SAFE 59.2-60.4 C (median 59.7, limit 60)
+
+FAIL runs: 0
+
+Board vs PC (same seed, same C code): 1000 runs compared
+  identical verdict / fault / final state : 1000/1000
+  identical all printed fields            : 991/1000
+  max |diff| react_ms 0 ms, min_soc 0.0 %, max_tc 0.0 C, soc_err 0.01 %
+  differing runs: 199, 362, 419, 443, 708, 728, 744, 932, 950
+
+Board timing (STM32G431 @ 170 MHz, -O2): run mean 963 ms, max 1017 ms (6000 steps: 160 us/step incl. twin), total 963 s = 623x real time
