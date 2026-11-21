@@ -61,6 +61,9 @@ try:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    import thesis_style as ts                       # ortak tez figür stili
+    ts.apply()
     fig, ax = plt.subplots(2, 1, figsize=(10, 6))
     tt = keep["t"] / 3600
     for a, lim in ((ax[0], None), (ax[1], (5.0, 5.6))):

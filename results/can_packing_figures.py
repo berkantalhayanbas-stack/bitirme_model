@@ -14,16 +14,18 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import thesis_style as ts                       # ortak tez figür stili
+ts.apply()
+plt.rcParams["axes.grid"] = False                 # diyagram: ızgara yalnız istenen eksende
 from matplotlib.patches import Rectangle
 
 OUT = os.path.dirname(os.path.abspath(__file__))
 BMS_ECU_TOOLS = r"C:\Users\berka\STM32CubeIDE\workspace_2.2.0\bms_ecu\tools"
-INK, INK2, GRID = "#1f1f1e", "#5f5e58", "#d6d5cf"
-BLUE, ORANGE, AQUA, YELLOW, MAGENTA = "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"
-GRAY, DGRAY = "#9a9990", "#5f5e58"
+INK, INK2, GRID = ts.INK, ts.INK2, ts.GRID
+BLUE, ORANGE, AQUA, YELLOW, MAGENTA = ts.BLUE, ts.ORANGE, ts.AQUA, ts.YELLOW, ts.MAGENTA
+GRAY, DGRAY = ts.MUTED, ts.INK2
 
-plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 9,
-                     "axes.edgecolor": GRID, "text.color": INK})
 
 # ------------------------------------------------------------ 1) bit düzeni
 # segment: (bayt, düşük bit, yüksek bit, renk, etiket)
@@ -31,7 +33,7 @@ F101 = [
     (0, 0, 7, BLUE, "V_pack [7:0]"), (1, 0, 7, BLUE, "V_pack [15:8]"),
     (2, 0, 7, ORANGE, "I_pack [7:0]"), (3, 0, 7, ORANGE, "I_pack [15:8]"),
     (4, 0, 7, AQUA, "T_pack [7:0]"), (5, 0, 7, AQUA, "T_pack [15:8]"),
-    (6, 0, 3, GRAY, "counter"), (6, 4, 7, "#e9e8e2", "reserved (0)"),
+    (6, 0, 3, GRAY, "counter"), (6, 4, 7, ts.LIGHT, "reserved (0)"),
     (7, 0, 7, DGRAY, "CRC-8 SAE J1850"),
 ]
 F110 = [
@@ -157,8 +159,8 @@ fld = f["field"]
 t_end = t_us[-1] + 2.0
 
 FIELD_COL = {"SOF": BLUE, "ID": BLUE, "RTR": "#c3c2b7", "IDE": "#c3c2b7", "r0": "#c3c2b7",
-             "DLC": "#c3c2b7", "DATA": AQUA, "CRC": ORANGE, "CRC del": "#e9e8e2",
-             "ACK": MAGENTA, "ACK del": "#e9e8e2", "EOF": "#e9e8e2"}
+             "DLC": "#c3c2b7", "DATA": AQUA, "CRC": ORANGE, "CRC del": ts.LIGHT,
+             "ACK": MAGENTA, "ACK del": ts.LIGHT, "EOF": ts.LIGHT}
 fig, ax = plt.subplots(figsize=(10.5, 4.2))
 # alan şeritleri (doldurma bitleri bulunduğu alana katılır, ayrıca işaretlenir)
 eff = []

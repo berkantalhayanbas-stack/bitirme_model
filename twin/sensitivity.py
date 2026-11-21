@@ -89,15 +89,19 @@ def plot(df):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import os, sys
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    import thesis_style as ts                       # ortak tez figür stili
+    ts.apply()
     s1 = df[df.scenario == "S1"].set_index("case").reindex([c for c, _, _ in CASES])
     base = s1.loc["baseline", "soc_rmse"]
     s1 = s1.drop("baseline")
     fig, ax = plt.subplots(figsize=(7.4, 6.2))
     y = np.arange(len(s1))[::-1]
     sensor = s1.index.str.contains("noise|bias")
-    col = np.where(s1.pct_limp > 1, "#eb6834", np.where(sensor, "#9a9990", "#2a78d6"))
+    col = np.where(s1.pct_limp > 1, ts.ORANGE, np.where(sensor, ts.MUTED, ts.BLUE))
     ax.barh(y, s1.soc_rmse, color=col, height=0.62)
-    ax.axvline(base, color="#1f1f1e", lw=1, ls="--")
+    ax.axvline(base, color=ts.INK, lw=1, ls="--")
     ax.text(base, len(s1) - 0.3, f" baseline {base:.2f} %", fontsize=8, va="bottom")
     for yi, (c, r) in zip(y, s1.iterrows()):
         txt = f"{r.soc_rmse:.2f}"
@@ -110,10 +114,10 @@ def plot(df):
     ax.set_title("Sensitivity: plant parameter / sensor mismatch vs ECU", loc="left", fontsize=10,
                  fontweight="bold")
     from matplotlib.patches import Patch
-    ax.legend(handles=[Patch(color="#2a78d6", label="plant parameter"), Patch(color="#9a9990", label="sensor"),
-                       Patch(color="#eb6834", label="false sensor-fault LIMP (cause 32)")],
+    ax.legend(handles=[Patch(color=ts.BLUE, label="plant parameter"), Patch(color=ts.MUTED, label="sensor"),
+                       Patch(color=ts.ORANGE, label="false sensor-fault LIMP (cause 32)")],
               frameon=False, fontsize=8, loc="lower right")
-    ax.grid(axis="x", color="#d6d5cf", lw=0.6); ax.set_axisbelow(True)
+    ax.grid(axis="y", visible=False)
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
     fig.tight_layout()

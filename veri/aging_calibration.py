@@ -25,6 +25,10 @@ import os, glob, json
 import numpy as np, pandas as pd
 from scipy.optimize import least_squares
 import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import thesis_style as ts                       # ortak tez figür stili
+ts.apply()
 from rainflow import rainflow
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -123,8 +127,7 @@ for e, g in cal.groupby('expt'): print(f'  {LABEL[e]:22s}: {100*np.sqrt(np.mean(
 print('Validation on held-out drive-cycle experiment (expt 4):'); print(pd.DataFrame(vrows).to_string(index=False))
 
 # ------------------------------------------------------------------ şekiller (İngilizce)
-col = {10: 'tab:blue', 25: 'tab:orange', 40: 'tab:red'}
-plt.rcParams.update({'font.size': 10})
+col = {10: ts.BLUE, 25: ts.ORANGE, 40: ts.RED}
 fig, ax = plt.subplots(1, 4, figsize=(15, 3.8), sharey=True)
 for k, e in enumerate(['1', '2,2', '3', '5']):
     g = D[D.expt == e]
@@ -161,9 +164,9 @@ for dod, ls in [(1.0, '-'), (0.5, '--'), (0.15, ':')]:
 ax[0].set_xlabel('Mean SOC of cycle'); ax[0].set_ylabel('Stress factor S (per EFC)'); ax[0].grid(alpha=0.3, which='both')
 ax[0].set_title('Stress vs mean SOC at 28 °C'); ax[0].legend()
 TT = np.linspace(10, 50, 200)
-ax[1].axvspan(T_DATA_MAX, 50, color='0.9', zorder=0)
+ax[1].axvspan(T_DATA_MAX, 50, color=ts.LIGHT, lw=0, zorder=0)
 ax[1].text(T_DATA_MAX+0.5, 0.25, 'extrapolation\n(Millner rule)', fontsize=8, va='bottom')
-for m_, c_ in [(0.15, 'tab:purple'), (0.5, 'k'), (0.775, 'tab:green'), (0.925, 'tab:red')]:
+for m_, c_ in [(0.15, ts.VIOLET), (0.5, ts.BLUE), (0.775, ts.AQUA), (0.925, ts.RED)]:
     ax[1].plot(TT, S_fun(p, 1.0 if m_ == 0.5 else (0.3 if m_ == 0.15 else 0.15), m_, TT), c=c_,
                label=f'mean SOC {m_:.2f}')
 ax[1].set_xlabel('Cell temperature [°C]'); ax[1].set_ylabel('Stress factor S'); ax[1].grid(alpha=0.3)

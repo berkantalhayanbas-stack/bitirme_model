@@ -97,6 +97,9 @@ try:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    import thesis_style as ts                       # ortak tez figür stili
+    ts.apply()
     fig, ax = plt.subplots(2, 1, figsize=(10, 6.5))
     tt = (keep["t"] - keep["t"][0]) / 3600
     ax[0].plot(tt, keep["v"], "k", lw=1, label="Measured (cell E)")

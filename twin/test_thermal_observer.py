@@ -12,6 +12,10 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import thesis_style as tsty                     # ortak tez figür stili (ts adı betikte kullanılıyor)
+tsty.apply()
 
 from battery_model import PackTwin, CellParams, PackConfig
 from sensors import measure
@@ -80,20 +84,23 @@ for name, (d, est, ru_hat, ta, ruf) in store.items():
 d, est, ru_hat, ta, ruf = store["cooling_fault"]
 t = ref.t.values
 fig, ax = plt.subplots(3, 1, figsize=(10, 9), sharex=True)
-ax[0].plot(t, d.t_core, "k", lw=1.5, label="True T_core")
-for k in ["T_surf measured", "Open-loop model", "KF (R_u nominal)", "EKF (g estimated)"]:
-    ax[0].plot(t, est[k], lw=0.8, label=k)
-ax[0].set_ylabel("Temperature [°C]"); ax[0].legend(fontsize=8); ax[0].grid(alpha=.3)
-for k in ["T_surf measured", "Open-loop model", "KF (R_u nominal)", "EKF (g estimated)"]:
-    ax[1].plot(t, np.asarray(est[k]) - d.t_core, lw=0.8, label=k)
-ax[1].axhline(1, c="r", ls=":"); ax[1].axhline(-1, c="r", ls=":")
-ax[1].set_ylabel("T_core error [°C]"); ax[1].set_ylim(-6, 3); ax[1].grid(alpha=.3)
-ax[2].plot(t, ru_hat, label="Estimated R_u"); ax[2].axhline(cell0.ru * ruf, c="k", ls="--", label="True R_u")
-ax[2].axhline(cell0.ru, c="g", ls=":", label="Nominal R_u")
-ax[2].set_ylabel("R_u [K/W]"); ax[2].set_xlabel("Time [s]"); ax[2].legend(fontsize=8); ax[2].grid(alpha=.3)
+# ölçüm silik gri (arkada), önerilen EKF mavi, gerçek değer mürekkep (önde)
+STY = {"T_surf measured": dict(c=tsty.MUTED, alpha=.45, lw=.6, zorder=1), "Open-loop model": dict(c=tsty.ORANGE, lw=1, zorder=2),
+       "KF (R_u nominal)": dict(c=tsty.AQUA, lw=1, zorder=2), "EKF (g estimated)": dict(c=tsty.BLUE, lw=1.2, zorder=3)}
+for k in STY:
+    ax[0].plot(t, est[k], label=k, **STY[k])
+ax[0].plot(t, d.t_core, c=tsty.INK, lw=1, zorder=4, label="True T_core")
+ax[0].set_ylabel("Temperature [°C]"); ax[0].legend(fontsize=8)
+for k in STY:
+    ax[1].plot(t, np.asarray(est[k]) - d.t_core, label=k, **STY[k])
+tsty.ref_line(ax[1], 1); tsty.ref_line(ax[1], -1)
+ax[1].set_ylabel("T_core error [°C]"); ax[1].set_ylim(-6, 3)
+ax[2].plot(t, ru_hat, c=tsty.BLUE, lw=1.2, label="Estimated R_u"); ax[2].axhline(cell0.ru * ruf, c=tsty.INK, ls="--", lw=1, label="True R_u")
+ax[2].axhline(cell0.ru, c=tsty.MUTED, ls=":", lw=1, label="Nominal R_u")
+ax[2].set_ylabel("R_u [K/W]"); ax[2].set_xlabel("Time [s]"); ax[2].legend(fontsize=8)
 fig.suptitle("Thermal observer, cooling fault (35 °C, R_u ×4) — Python prototype")
 fig.tight_layout()
-fig.savefig(os.path.join(HERE, "..", "results", "thermal_observer_py.png"), dpi=120)
+fig.savefig(os.path.join(HERE, "..", "results", "thermal_observer_py.png"), dpi=200)
 
 # algılama istatistikleri
 for name, (d, est, ru_hat, ta, ruf) in store.items():

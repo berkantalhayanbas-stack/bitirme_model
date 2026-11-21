@@ -21,6 +21,10 @@ import re
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import thesis_style as ts                       # ortak tez figür stili
+ts.apply()
 import numpy as np
 import pandas as pd
 from galvani import BioLogic
@@ -93,16 +97,16 @@ for tau in TAUS:
     ax.plot(Tg, arr(r25, ea, Tg), color=COL[k], lw=1.8)
     ax.plot(df.T_cell, df[f"R_{k}"], "o", color=COL[k], ms=6, mec="white", mew=1)
     ax.annotate(f"{tau:g} s: Ea {ea / 1e3:.0f} kJ/mol", (45, arr(r25, ea, 45.0)), xytext=(4, 0),
-                textcoords="offset points", va="center", fontsize=8, color="#1f1f1e")
-ax.plot(Tg, arr(26.4, 20000.0, Tg), color="#9a9990", lw=1.5, ls="--")
+                textcoords="offset points", va="center", fontsize=8, color=ts.INK)
+ax.plot(Tg, arr(26.4, 20000.0, Tg), color=ts.MUTED, lw=1.5, ls="--")
 ax.annotate("previous model R0, Ea 20 kJ/mol", (6, arr(26.4, 20000.0, 6.0)), xytext=(0, 6),
-            textcoords="offset points", fontsize=8, color="#5f5e58")
+            textcoords="offset points", fontsize=8, color=ts.INK2)
 ax.set_xlim(5, 60)
 ax.set_xlabel("cell surface temperature [°C]")
 ax.set_ylabel("R = ΔV/ΔI after a 5 A step at ~100 % SOC [mΩ]")
 ax.set_title("LG M50T resistance vs temperature, by time after the step (Kirkaldy 2024)",
              loc="left", fontsize=9.5, fontweight="bold")
-ax.grid(color="#d6d5cf", lw=0.6)
+ax.grid(color=ts.GRID, lw=0.6)
 for sp in ("top", "right"):
     ax.spines[sp].set_visible(False)
 fig.tight_layout()

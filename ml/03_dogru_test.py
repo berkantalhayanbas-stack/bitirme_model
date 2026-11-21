@@ -33,6 +33,10 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import thesis_style as ts                       # ortak tez figür stili
+ts.apply()
 from sklearn.model_selection import KFold, LeaveOneGroupOut, cross_val_predict
 from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
@@ -127,7 +131,7 @@ for split in R.Split.unique():
 sub = R[R.Split == "Leave-one-condition-out"].reset_index(drop=True)
 lab = [f"{m}\n{f}" if not m.startswith(("Physics", "Hybrid")) else m.replace(": ", ":\n")
        for m, f in zip(sub.Model, sub.Features)]
-col = ["0.4" if m.startswith("Physics") else ("C3" if m.startswith("Hybrid") else
+col = [ts.MUTED if m.startswith("Physics") else ("C6" if m.startswith("Hybrid") else
        {"Usage only": "C0", "R only": "C1", "Usage + R": "C2"}[f]) for m, f in zip(sub.Model, sub.Features)]
 fig, ax = plt.subplots(figsize=(12, 4.6))
 ax.bar(range(len(sub)), sub.RMSE, color=col)

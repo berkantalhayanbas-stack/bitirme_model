@@ -28,6 +28,10 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import thesis_style as ts                       # ortak tez figür stili
+ts.apply()
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 VERI = os.path.join(HERE, "..", "veri")

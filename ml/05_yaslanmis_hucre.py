@@ -29,6 +29,9 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import thesis_style as ts                       # ortak tez figür stili
+ts.apply()
 from sklearn.tree import DecisionTreeRegressor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -140,12 +143,12 @@ d, est, _ = hist[cell_id]
 r = R[R.Cell == cell_id].iloc[0]
 fig, ax = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
 ax[0].plot(t / 60, 100 * d.soc, "k", lw=1.6, label="True SOC")
-for (name, e), c in zip(est.items(), ["C3", "C0", "C2"]):
+for (name, e), c in zip(est.items(), ["C1", "C0", "C2"]):
     ax[0].plot(t / 60, 100 * e, c=c, lw=1, label=name)
 ax[0].set_ylabel("SOC [%]"); ax[0].legend(); ax[0].grid(alpha=.3)
 ax[0].set_title(f"Aged pack (cell {cell_id}: SOH {r.SOH_true:.1f} %, R ×{r.rr_true:.2f}); "
                 f"ML estimate SOH {r.SOH_ML:.1f} %, R ×{r.rr_hat:.2f}")
-for (name, e), c in zip(est.items(), ["C3", "C0", "C2"]):
+for (name, e), c in zip(est.items(), ["C1", "C0", "C2"]):
     ax[1].plot(t / 60, 100 * (e - d.soc), c=c, lw=1, label=name)
 ax[1].set_ylim(-4, 4); ax[1].set_ylabel("SOC error [%]"); ax[1].set_xlabel("Time [min]")
 ax[1].grid(alpha=.3); ax[1].legend()

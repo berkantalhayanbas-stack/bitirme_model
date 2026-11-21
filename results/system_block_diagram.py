@@ -13,12 +13,17 @@ import os
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import thesis_style as ts                       # ortak tez figür stili
+ts.apply()
+plt.rcParams["axes.grid"] = False                 # diyagram: ızgara yalnız istenen eksende
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 
 OUT = os.path.dirname(os.path.abspath(__file__))
-INK, INK2, GRID = "#1f1f1e", "#5f5e58", "#d6d5cf"
-BLUE, ORANGE, AQUA, YELLOW, MAGENTA = "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"
-GRAY = "#9a9990"
+INK, INK2, GRID = ts.INK, ts.INK2, ts.GRID
+BLUE, ORANGE, AQUA, YELLOW, MAGENTA = ts.BLUE, ts.ORANGE, ts.AQUA, ts.YELLOW, ts.MAGENTA
+GRAY = ts.MUTED
 
 plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 8,
                      "text.color": INK})

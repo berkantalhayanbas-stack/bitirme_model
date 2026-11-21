@@ -44,15 +44,18 @@ try:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    import thesis_style as ts                       # ortak tez figür stili
+    ts.apply()
     fig, ax = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
-    ax[0].plot(grid, vc, "C3", lw=0.8, label="C/10 charge (median, 8 cells)")
+    ax[0].plot(grid, vc, "C1", lw=0.8, label="C/10 charge (median, 8 cells)")
     ax[0].plot(grid, vd, "C0", lw=0.8, label="C/10 discharge")
     ax[0].plot(grid, ocv, "k", lw=1.2, label="pseudo-OCV (mean)")
     ax[0].plot(cp.soc_tab, cp.ocv_tab, "o", ms=3, color="C2", label="Chen et al. 2020 (LG M50)")
     ax[0].set_ylabel("V"); ax[0].legend(fontsize=8)
     ax[1].plot(grid, 1e3 * (ocv - chen), "k", label="pseudo-OCV - Chen 2020")
-    ax[1].plot(grid, 1e3 * half, "C1", label="half gap (IR + hysteresis)")
-    ax[1].axhline(0, color="gray", lw=0.5); ax[1].set_ylim(-80, 80)
+    ax[1].plot(grid, 1e3 * half, "C2", label="half gap (IR + hysteresis)")
+    ax[1].axhline(0, color=ts.AXIS, lw=0.8); ax[1].set_ylim(-80, 80)
     ax[1].set_xlabel("SOC"); ax[1].set_ylabel("mV"); ax[1].legend(fontsize=8)
     fig.suptitle("LG M50T OCV from Kirkaldy et al. (2024) C/10 data vs model table")
     fig.tight_layout(); fig.savefig(os.path.join(HERE, "..", "results", "ocv_kirkaldy.png"), dpi=130)

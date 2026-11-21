@@ -18,6 +18,10 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import thesis_style as ts                       # ortak tez figür stili
+ts.apply()
 
 from battery_model import PackTwin, CellParams, PackConfig
 from sensors import measure
@@ -83,29 +87,30 @@ for metric, lab in [("RMSE", "RMSE after 60 s [%]"), ("MaxErr", "max |error| aft
 t, soc, est = store["normal"]
 fig, ax = plt.subplots(2, 1, figsize=(10, 7.5), sharex=True)
 ax[0].plot(t / 60, 100 * soc, "k", lw=1.8, label="True SOC")
-sty = {"Coulomb counting (50% start)": ("C7", "--"), "Coulomb counting (OCV start)": ("C1", "-"),
-       "OCV lookup": ("C0", "-"), "OCV lookup, IR-compensated": ("C9", "-"),
-       "EKF, fixed R0": ("C4", "-"), "EKF, R0(T)": ("C5", "-"), "EKF, R0(T) + bias (proposed)": ("C3", "-")}
+sty = {"Coulomb counting (50% start)": (ts.MUTED, "--"), "Coulomb counting (OCV start)": ("C1", "-"),
+       "OCV lookup": ("C2", "-"), "OCV lookup, IR-compensated": ("C3", "-"),
+       "EKF, fixed R0": ("C4", "-"), "EKF, R0(T)": ("C6", "-"), "EKF, R0(T) + bias (proposed)": ("C0", "-")}
 for lab, s in est.items():
     c, ls = sty[lab]
     ocv = lab.startswith("OCV lookup")          # gürültülü: soluk ve arkada çiz
     kw = dict(c=c, ls=ls, lw=.5 if ocv else 1.1, alpha=.3 if ocv else 1, zorder=1 if ocv else 3)
     ax[0].plot(t / 60, 100 * s, label=lab, **kw)
     ax[1].plot(t / 60, 100 * (s - soc), **kw)
-ax[0].set_ylabel("SOC [%]"); ax[0].legend(fontsize=7.5, ncol=2); ax[0].grid(alpha=.3)
+ax[0].set_ylabel("SOC [%]"); ax[0].legend(fontsize=7.5, ncol=2)
 ax[0].set_ylim(20, 95)
-ax[1].set_ylim(-8, 8); ax[1].set_ylabel("SOC error [%]"); ax[1].set_xlabel("Time [min]"); ax[1].grid(alpha=.3)
+ax[1].set_ylim(-8, 8); ax[1].set_ylabel("SOC error [%]"); ax[1].set_xlabel("Time [min]")
 ax[0].set_title("SOC estimators on the same noisy CAN data (normal scenario, +0.5 A current-sensor bias)")
 fig.tight_layout(); fig.savefig(os.path.join(FIG, "estimator_comparison_normal.png"), dpi=200)
 
 P = R.pivot(index="Method", columns="Scenario", values="RMSE").loc[order, [s[0] for s in SC]]
 fig, ax = plt.subplots(figsize=(10, 4.2))
-im = ax.imshow(np.log10(P.values), cmap="RdYlGn_r", aspect="auto", vmin=-1, vmax=1.3)
+im = ax.imshow(np.log10(P.values), cmap=ts.seq_cmap(), aspect="auto", vmin=-1, vmax=1.3)
 for i in range(P.shape[0]):
     for j in range(P.shape[1]):
-        ax.text(j, i, f"{P.values[i, j]:.2f}", ha="center", va="center", fontsize=8)
+        ax.text(j, i, f"{P.values[i, j]:.2f}", ha="center", va="center", fontsize=8,
+                color="white" if np.log10(P.values[i, j]) > 0.45 else ts.INK)
 ax.set_xticks(range(P.shape[1])); ax.set_xticklabels(P.columns, fontsize=8)
-ax.set_yticks(range(P.shape[0])); ax.set_yticklabels(P.index, fontsize=8)
+ax.set_yticks(range(P.shape[0])); ax.set_yticklabels(P.index, fontsize=8); ax.grid(False)
 ax.set_title("SOC RMSE after 60 s [%] (colour: log scale; target < 1.5 %)", fontsize=10)
 fig.tight_layout(); fig.savefig(os.path.join(FIG, "estimator_comparison_table.png"), dpi=200)
 print("\nSaved: results/estimator_comparison.csv, results/estimator_comparison_*.png")

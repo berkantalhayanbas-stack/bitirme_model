@@ -8,6 +8,10 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import thesis_style as ts                       # ortak tez figür stili
+ts.apply()
 
 from battery_model import PackTwin, CellParams, PackConfig
 from drive_cycle import synthetic_cycle, speed_to_current
@@ -72,39 +76,38 @@ df.iloc[::10].to_csv(os.path.join(OUT, "twin_run.csv"), index=False)  # 1 Hz
 
 # ---------------- 5) Grafikler ----------------
 fig, ax = plt.subplots(5, 1, figsize=(11, 13), sharex=True)
-ax[0].plot(t, v * 3.6, lw=0.8); ax[0].set_ylabel("Hız [km/h]")
+ax[0].plot(t, v * 3.6, lw=0.8); ax[0].set_ylabel("Speed [km/h]")
 ax[1].plot(t, i_pack, lw=0.6); ax[1].set_ylabel("I_pack [A]")
-ax[1].axhline(0, c="k", lw=0.5)
-ax[2].plot(t, vm, lw=0.4, alpha=0.5, label="Ölçülen (gürültülü)")
-ax[2].plot(t, df.v_pack, lw=0.8, label="Gerçek")
+ax[1].axhline(0, c=ts.AXIS, lw=0.8)
+ax[2].plot(t, vm, lw=0.4, alpha=0.5, c=ts.MUTED, label="Measured (noisy)")
+ax[2].plot(t, df.v_pack, lw=0.8, label="True")
 ax[2].plot(t, df.ocv_pack, lw=0.8, ls="--", label="OCV")
 ax[2].set_ylabel("V_pack [V]"); ax[2].legend(loc="lower left")
-ax[3].plot(t, df.soc * 100, "k", lw=1.2, label="Gerçek SOC")
-ax[3].plot(t, df.soc_ekf3_noT * 100, lw=0.8, alpha=0.6, label="EKF (sabit R0)")
+ax[3].plot(t, df.soc * 100, c=ts.INK, lw=1.2, label="True SOC")
+ax[3].plot(t, df.soc_ekf3_noT * 100, lw=0.8, alpha=0.6, label="EKF (fixed R0)")
 ax[3].plot(t, df.soc_ekf3 * 100, lw=0.8, label="EKF (R0(T))")
-ax[3].plot(t, df.soc_ekf4_bias * 100, lw=0.8, label="EKF (+akım kayması)")
-ax[3].plot(t, cc * 100, lw=0.8, ls=":", label="Coulomb sayımı")
+ax[3].plot(t, df.soc_ekf4_bias * 100, lw=0.8, label="EKF (+ current bias)")
+ax[3].plot(t, cc * 100, lw=0.8, ls=":", label="Coulomb counting")
 ax[3].set_ylabel("SOC [%]"); ax[3].legend(loc="upper right")
 ax[4].plot(t, df.t_core, label="T_core"); ax[4].plot(t, df.t_surf, label="T_surf")
-ax[4].set_ylabel("T [°C]"); ax[4].set_xlabel("Zaman [s]"); ax[4].legend()
-for a in ax: a.grid(alpha=0.3)
-fig.suptitle("19S12P LG 21700 Dijital İkiz + EKF")
-fig.tight_layout(); fig.savefig(os.path.join(OUT, "01_twin_overview.png"), dpi=130)
+ax[4].set_ylabel("T [°C]"); ax[4].set_xlabel("Time [s]"); ax[4].legend()
+fig.suptitle("19S12P LG 21700 digital twin + EKF", x=0.01, ha="left")
+fig.tight_layout(); fig.savefig(os.path.join(OUT, "01_twin_overview.png"), dpi=200)
 
 fig, ax = plt.subplots(1, 2, figsize=(12, 4))
 s = np.linspace(0.05, 1, 200)
-ax[0].plot(cell.soc_tab, cell.ocv_tab, "o", label="Tablo")
-ax[0].plot(s, np.polyval(coef, s), label=f"7. derece polinom (R²={r2:.5f})")
-ax[0].set_xlabel("SOC"); ax[0].set_ylabel("OCV hücre [V]"); ax[0].legend(); ax[0].grid(alpha=.3)
+ax[0].plot(cell.soc_tab, cell.ocv_tab, "o", label="Table")
+ax[0].plot(s, np.polyval(coef, s), label=f"7th-order polynomial (R²={r2:.5f})")
+ax[0].set_xlabel("SOC"); ax[0].set_ylabel("Cell OCV [V]"); ax[0].legend()
 z = t < 180
-ax[1].plot(t[z], df.soc[z] * 100, "k", label="Gerçek")
-ax[1].plot(t[z], df.soc_ekf3_noT[z] * 100, alpha=0.6, label="EKF sabit R0")
+ax[1].plot(t[z], df.soc[z] * 100, c=ts.INK, label="True")
+ax[1].plot(t[z], df.soc_ekf3_noT[z] * 100, alpha=0.6, label="EKF fixed R0")
 ax[1].plot(t[z], df.soc_ekf3[z] * 100, label="EKF 3")
 ax[1].plot(t[z], df.soc_ekf4_bias[z] * 100, label="EKF 4")
-ax[1].axvline(60, c="r", ls="--", lw=0.8, label="60 s hedefi")
-ax[1].set_xlabel("Zaman [s]"); ax[1].set_ylabel("SOC [%]")
-ax[1].set_title("Yakınsama: gerçek %80, EKF başlangıcı %50"); ax[1].legend(); ax[1].grid(alpha=.3)
-fig.tight_layout(); fig.savefig(os.path.join(OUT, "02_ocv_fit_convergence.png"), dpi=130)
+ts.ref_line(ax[1], x=60, label="60 s target")
+ax[1].set_xlabel("Time [s]"); ax[1].set_ylabel("SOC [%]")
+ax[1].set_title("Convergence: true 80 %, EKF start 50 %"); ax[1].legend()
+fig.tight_layout(); fig.savefig(os.path.join(OUT, "02_ocv_fit_convergence.png"), dpi=200)
 
 # ---------------- 6) Özet ----------------
 eq = twin.pack_equivalent()

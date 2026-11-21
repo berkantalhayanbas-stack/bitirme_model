@@ -20,6 +20,10 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import thesis_style as ts                       # ortak tez figür stili
+ts.apply()
 from scipy import signal
 
 from battery_model import PackTwin, CellParams, PackConfig
@@ -125,20 +129,20 @@ k0 = np.argmax(D["cooling_fault"].t_surf.values > 45.0)
 z = slice(k0 - 600, k0 + 900)
 tm = M["cooling_fault"][2]
 fig, ax = plt.subplots(1, 2, figsize=(12, 4.3))
-ax[0].plot(t[z], tm[z], c="0.75", lw=.6, label="Measured (CAN)")
-for name, c in [("Moving average, 3 samples", "C0"), ("Butterworth 2nd order, 0.5 Hz", "C3")]:
+ax[0].plot(t[z], tm[z], c=ts.MUTED, alpha=.5, lw=.6, label="Measured (CAN)")
+for name, c in [("Moving average, 3 samples", "C0"), ("Butterworth 2nd order, 0.5 Hz", "C1")]:
     b, a = F[name]
     ax[0].plot(t[z], filt(b, a, tm)[z], c=c, lw=1.2, label=name)
 ax[0].plot(t[z], D["cooling_fault"].t_surf.values[z], "k--", lw=1.2, label="True T_surf")
-ax[0].axhline(45, c="r", ls=":", lw=1)
+ts.ref_line(ax[0], 45, "45 °C")
 ax[0].set_xlabel("Time [s]"); ax[0].set_ylabel("T_surf [°C]"); ax[0].legend(fontsize=8)
 ax[0].set_title("Over-temperature threshold (45 °C): noise causes chatter", fontsize=10)
 ax[0].grid(alpha=.3)
 sel = R[R.Filter != "None"]
-ax[1].scatter(sel.Delay_ms / 1000, sel["OT entries"], c="C3", label="Over-temperature (45 °C)")
+ax[1].scatter(sel.Delay_ms / 1000, sel["OT entries"], c="C1", label="Over-temperature (45 °C)")
 ax[1].scatter(sel.Delay_ms / 1000, sel["UV entries"], c="C0", marker="s", label="Under-voltage (2.8 V)")
 n0 = R[R.Filter == "None"]
-ax[1].scatter([0, 0], [n0["OT entries"].iloc[0], n0["UV entries"].iloc[0]], c=["C3", "C0"],
+ax[1].scatter([0, 0], [n0["OT entries"].iloc[0], n0["UV entries"].iloc[0]], c=["C1", "C0"],
               marker="x", s=60, label="No filter")
 ax[1].set_xscale("symlog", linthresh=0.05); ax[1].set_yscale("symlog", linthresh=1)
 ax[1].set_xlabel("Filter group delay [s]"); ax[1].set_ylabel("Entries into the alarm region")
