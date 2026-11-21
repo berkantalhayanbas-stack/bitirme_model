@@ -1,4 +1,30 @@
-# Bitirme: yapılacaklar ve alınacaklar (2026-11-19)
+# Bitirme: yapılacaklar ve alınacaklar (2026-11-19, güncelleme 2026-11-22)
+
+## Güncelleme 21-22 Kasım (yapılanlar)
+- Termal anomali dedektörü (adyabatik zarf): gizli ısı -> kilitli LIMP; MC dış ısı 151/151, medyan 8 s.
+- Termal olay (SAFE'te akımsız ısınma, neden 2048); CAN Rx FIFO taşması (yazılım tamponu) ve
+  yeniden başlatmada bayat çerçeve düzeltildi.
+- Stres indeksi Ψ: kullanılan 3 akım kısan kriter Ψ_T, Ψ_C, Ψ_Tdot (κ 0,25). Ψ_H (k_R) yalnız gösterge
+  (neden 1024, 120 s sonra). EKF k_R ilk 120 s donuk (kart testinde açılışta 2,0'a fırlıyordu).
+- Yaşlanma: tek parametre SOH, direnç = 1 + 1,31 (1 - SOH) (Kirkaldy 40 hücre); C/Python/Simulink ikizi,
+  twin_emu `y`, MC aged SOH %70-84. Kart = PC 1000/1000.
+- twin_emu: pot = arıza şiddeti (soğutma R_u x1-x8, aşırı ısınma 0-1,17 °C/s), `v` komutu.
+- Uzaktan izleme: gateway + panel (Overview/Engineering, buton testleri, bağlantı kalitesi:
+  18 046 satır, kayıp %0, RTT p50 102 ms).
+- Literatür: docs/stress_criteria_review.md (5 aday kriter; gelecek çalışma, uygulanmadı).
+
+## Açık işler (22 Kasım itibarıyla, öncelik sırasıyla)
+1. [ ] Kartta MC 1000 koşu son ECU koduyla (EKF k_R dondurma, f803a97); yalnız PC'de koşuldu.
+2. [ ] EKF'yi açılışta dinlenme OCV'sinden başlat (şu an %50): A1'deki gözlemci sapmasının ve k_R
+       sıçramasının ortak kökü olabilir.
+3. [ ] SOH göstergesi hep %100 (rint kestiricisi yumuşak çevrimde örnek almıyor): tezde sınırlama ya da
+       k_R'den SOH; kalıcı bellek gerekir. Şimdilik bekliyor (kullanıcı kararı).
+4. [ ] Panel: Ψ_H'nin "yalnız gösterge" olduğunu yaz (index.html başka oturumda değişmiş, commit'siz).
+5. [ ] ESP-01S + USB adaptör gelince Wi-Fi gateway (arduino/esp_gateway, commit'siz).
+6. [ ] Aşağıdaki eski açıklar: A7 (b_I kayması), A8 (T hız teşhisi gürültü), 4, 5, 6; B7-B12; C14-C17.
+7. [ ] En sonda tek geçişte eski sonuçları yeniden üret (OCV değişimi öncesi figürler; scipy/sklearn kur).
+8. [ ] Tez yazımı (~2 Aralık), sunum, jüri provası.
+
 
 Hedef: batarya odaklı, gerçek veriyle desteklenmiş, geleceğin araçlarına uygun bir BMS
 (dijital ikiz + kendini teşhis eden kestirim + mikrodenetleyicide ML + deterministik güvenlik).
@@ -73,7 +99,7 @@ Tez yazımı ~2 Aralık'ta başlar. Öncelik sırası: A (güvenlik) > C (doğru
 10. [ ] **Gerçek akım ölçümü** (alınacaklar 2): INA226 + küçük yük; bias/gürültü gerçek veride.
 11. [ ] **Bağımsız analog koruma** (alınacaklar 3): LM393 ile yazılımdan bağımsız ikinci katman.
 12. [ ] **Sürücü uyarısı:** buzzer (DERATE kısa bip, SAFE sürekli).
-12b. [ ] **Çok kriterli stres indeksi Ψ (ÖNEMLİ, tez başlığı; 20 Kasım tasarım taslağı, kullanıcı onayı bekliyor):**
+12b. [x] **Çok kriterli stres indeksi Ψ (21-22 Kasım, aşağıdaki güncellemeye bak; ilk taslak):**
        bugün Ψ = max(Ψ_T, Ψ_C). Önerilen ek alt indeksler: Ψ_Ṫ (dT/dt 3→10 °C/dk, tavan 0,5),
        Ψ_I (I²t %70→100, 0,3), Ψ_H (EKF k_R 1,2→1,6, 0,3), Ψ_B (ΔV 30→100 mV düşük akımda, 0,2),
        Ψ_U (σ_SOC %3→8, 0,2). Birleştirme Ψ = min(1, Ψ_max + κ(ΣΨᵢ − Ψ_max)), κ = 0,25; baskın
