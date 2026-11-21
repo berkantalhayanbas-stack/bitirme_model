@@ -13,6 +13,11 @@
   18 046 satır, kayıp %0, RTT p50 102 ms).
 - Literatür: docs/stress_criteria_review.md (5 aday kriter; gelecek çalışma, uygulanmadı).
 
+## Karar (22 Kasım): özellik dondurma
+Lisans düzeyi için veri ve ölçüm yeterli; yeni özellik eklenmiyor. ESP iptal, uzaktan izleme PC gateway'iyle.
+Kalan iş: doğrulamayı son koda göre kapatmak, sonuçları tek geçişte yenilemek, tezi yazmak.
+Aşağıdaki listede 2, 3, 6 ve literatürdeki adaylar tezde "sınırlamalar / gelecek çalışma" olarak yazılır.
+
 ## Açık işler (22 Kasım itibarıyla, öncelik sırasıyla)
 1. [ ] Kartta MC 1000 koşu son ECU koduyla (EKF k_R dondurma, f803a97); yalnız PC'de koşuldu.
 2. [ ] EKF'yi açılışta dinlenme OCV'sinden başlat (şu an %50): A1'deki gözlemci sapmasının ve k_R
@@ -20,7 +25,7 @@
 3. [ ] SOH göstergesi hep %100 (rint kestiricisi yumuşak çevrimde örnek almıyor): tezde sınırlama ya da
        k_R'den SOH; kalıcı bellek gerekir. Şimdilik bekliyor (kullanıcı kararı).
 4. [ ] Panel: Ψ_H'nin "yalnız gösterge" olduğunu yaz (index.html başka oturumda değişmiş, commit'siz).
-5. [ ] ESP-01S + USB adaptör gelince Wi-Fi gateway (arduino/esp_gateway, commit'siz).
+5. [-] ESP Wi-Fi gateway: iptal (22 Kasım), PC gateway kullanılıyor.
 6. [ ] Aşağıdaki eski açıklar: A7 (b_I kayması), A8 (T hız teşhisi gürültü), 4, 5, 6; B7-B12; C14-C17.
 7. [ ] En sonda tek geçişte eski sonuçları yeniden üret (OCV değişimi öncesi figürler; scipy/sklearn kur).
 8. [ ] Tez yazımı (~2 Aralık), sunum, jüri provası.
