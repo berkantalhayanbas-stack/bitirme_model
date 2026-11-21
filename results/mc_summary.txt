@@ -3,27 +3,27 @@ Plant: 19S12P digital twin (bms/sim/twin_model.c); ECU: bms_step (bms/common), s
 Randomized per run: T_amb 0-40 C, SOC0 35-95 %, drive severity x0.6-1.6, cycle offset, capacity +-2 %,
 R +-5 %, current-sensor offset +-2.5 A; one fault (none 30 %, cooling 20 %, ext. heat 15 %, NTC open 15 %,
 large current offset 4-12 A 20 %) at a random time 60-480 s. 40 % of the fault-free runs are aged packs
-(resistance x1.4-1.7 from the start; expected: stress-index criterion H). Fault-free runs must not raise
+(SOH 70-84 % from the start: capacity x SOH, resistance x 1 + 1.31 (1 - SOH); expected: stress-index criterion H). Fault-free runs must not raise
 the new stress criteria (temperature-rise rate, resistance growth).
 
 Results (board):
           runs  PASS  react_ms median  react_ms max  detected %  SOC err max %  T_core max C
 fault                                                                                       
-aged       119   119           3500.0       20600.0      100.00           9.74          43.1
+aged       119   119           5400.0       59300.0      100.00           4.67          43.2
 cooling    199   199         139800.0      456900.0       48.74           2.19          44.4
 ext_heat   151   151           8000.0       11700.0      100.00           1.78          73.5
 i_offset   202   202            900.0         900.0      100.00           1.86          40.3
 none       178   178              NaN           NaN        0.00           1.62          44.2
 ntc_open   151   151              0.0           0.0      100.00           1.71          43.9
-ALL       1000  1000              NaN           NaN         NaN           9.74          73.5
+ALL       1000  1000              NaN           NaN         NaN           4.67          73.5
 External heat: true core at LIMP 4.3-47.8 C (median 25.7, limit 55), at SAFE 58.0-59.2 C (median 58.6, limit 60)
 
 FAIL runs: 0
 
 Board vs PC (same seed, same C code): 1000 runs compared
   identical verdict / fault / final state : 1000/1000
-  identical all printed fields            : 993/1000
+  identical all printed fields            : 991/1000
   max |diff| react_ms 0 ms, min_soc 0.0 %, max_tc 0.0 C, soc_err 0.01 %
-  differing runs: 217, 362, 443, 635, 728, 734, 744
+  differing runs: 175, 362, 386, 400, 443, 635, 728, 744, 765
 
-Board timing (STM32G431 @ 170 MHz, -O2): run mean 984 ms, max 1040 ms (6000 steps: 164 us/step incl. twin), total 984 s = 610x real time
+Board timing (STM32G431 @ 170 MHz, -O2): run mean 992 ms, max 1048 ms (6000 steps: 165 us/step incl. twin), total 992 s = 605x real time
