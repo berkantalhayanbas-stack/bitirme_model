@@ -24,7 +24,8 @@ Fault_mode = 0;
 Fault_t    = 1200;  % arıza anı [s]
 Diag_on    = 1;     % 1: sensör teşhisi ve EKF inovasyon kapısı açık
 
-% Yaşlanma: ikizin gerçek durumu (Age_*) ve BMS'in bildiği (Bms_*); yeni hücre = 1
+% Yaşlanma: ikizin gerçek durumu (Age_*) ve BMS'in bildiği (Bms_*); yeni hücre = 1.
+% Yalnız SOH biliniyorsa direnç oranı veriden: Age_R = 1 + P.age_beta * (1 - Age_Q)
 Age_Q = 1;  Age_R = 1;
 Bms_Q = 1;  Bms_R = 1;
 % Çevrimiçi direnç kestiricisi: önceki sürüşlerden saklanan birikimler (0 = hiç sürüş yok)

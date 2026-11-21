@@ -20,6 +20,9 @@ from dataclasses import dataclass, field
 import numpy as np
 
 R_GAS = 8.314  # J/(mol K)
+# Yaşlanma: direnç oranı = 1 + AGE_BETA (1 - SOH); Kirkaldy vd. (2024) 40 hücre, 224 RPT
+# (veri/age_resistance.py). bms_ecu twin_model.h TW_AGE_BETA ve simulink P.age_beta ile aynı.
+AGE_BETA = 1.31
 
 
 def arrhenius(ea, t_c):
@@ -57,6 +60,15 @@ class CellParams:
         [0.0, 0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.98, 1.0]))
     ocv_tab: np.ndarray = field(default_factory=lambda: np.array(
         [2.9414, 3.0161, 3.1444, 3.2871, 3.4047, 3.4646, 3.5055, 3.5621, 3.6086, 3.6418, 3.6729, 3.7119, 3.7594, 3.8136, 3.8737, 3.9207, 3.9641, 4.0162, 4.0619, 4.0873, 4.1120, 4.1519, 4.1845]))
+
+
+def aged_cell(cell: "CellParams" = None, soh: float = 1.0, k_r: float = None) -> "CellParams":
+    """Yaşlanmış hücre: kapasite SOH katı, R0/R1/R2 k_r katı (verilmezse 1 + AGE_BETA (1 - SOH));
+    kapasitanslar sabit (bms_ecu twin_model.c ve simulink battery_twin.m Age_Q / Age_R ile aynı)."""
+    from dataclasses import replace
+    c = cell or CellParams()
+    k = 1.0 + AGE_BETA * (1.0 - soh) if k_r is None else k_r
+    return replace(c, capacity_ah=c.capacity_ah * soh, r0=c.r0 * k, r1=c.r1 * k, r2=c.r2 * k)
 
 
 @dataclass

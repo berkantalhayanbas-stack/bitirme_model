@@ -36,6 +36,9 @@ P.ea_r0 = 6200;  P.ea_r1 = 17500;  P.ea_r2 = 14300;
 P.Rgas  = 8.314;
 
 % ---- Zayıf seri grup (Weak_on = 1 iken; 1 / 19 grup) ----
+% Yaşlanma: direnç oranı = 1 + age_beta (1 - SOH) (Kirkaldy 40 hücre, veri/age_resistance.py;
+% bms_ecu TW_AGE_BETA, twin/battery_model.py AGE_BETA ile aynı). bms_init: Age_R = 1 + P.age_beta*(1 - Age_Q)
+P.age_beta = 1.31;
 P.weak_cap = 0.90;      % kapasite oranı (%10 düşük)
 P.weak_r   = 1.20;      % direnç oranı (%20 yüksek)
 
@@ -119,7 +122,7 @@ P.dec_tdot_on    = 3;     % [°C/dk] Ψ_Tdot başlar (nominal MC en çok 2,3 °C
 P.dec_tdot_full  = 10;    % [°C/dk] tavana ulaşır
 P.dec_psi_tdot   = 0.5;   % Ψ_Tdot tavanı
 P.dec_kr_on      = 1.2;   % Ψ_H: EKF R0 ölçeği k_R (nominal MC 0,89-1,10)
-P.dec_kr_full    = 1.6;
+P.dec_kr_full    = 1.3;   % SOH ~%80 (ömür sonu; veri/age_resistance.py, EKF +%3-4)
 P.dec_psi_health = 0.3;   % Ψ_H tavanı
 P.dec_kr_sop_max = 2.0;   % SOP direnci R0 · clip(k_R, 1, 2) · Arrhenius(T)
 P.dec_kappa      = 0.25;  % toplama ağırlığı (0: eski max)

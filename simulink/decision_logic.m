@@ -17,7 +17,7 @@ function [state, I_allow_dis, I_allow_chg, psi, cause, psi_s, dom, psi_i, tdot] 
 %       Ψ_T    43→55 °C doğrusal (45 °C'de başlar, 43 altında kalkar), tavan 1
 %       Ψ_C    soğutma alarmı (R_u > 18 K/W'ta açılır, < 15 K/W'ta kalkar; ilk 120 s yok) 0.3
 %       Ψ_Tdot ölçülen yüzey T'nin süzülmüş artış hızı 3→10 °C/dk, tavan 0.5
-%       Ψ_H    EKF R0 ölçeği k_R 1.2→1.6, tavan 0.3
+%       Ψ_H    EKF R0 ölçeği k_R 1.2→1.3 (SOH ~%86→%80), tavan 0.3
 %     I_SOP (hızlı, akımı keser) = |I| + k·Np·(V - V_sınır)/R0(T); gerilim eşiği yerine akım sınırı
 %     Durum için yavaş kapasite tahmini: SOP_qs = Np·(V ± |i|R0 - V_sınır)/(R0+R1+R2),
 %         < %90 · veri sayfası sınırı -> neden; ≥ %100 -> kalkar (histerezis bandı)

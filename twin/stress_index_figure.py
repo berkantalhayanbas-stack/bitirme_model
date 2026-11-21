@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(HERE))           # thesis_style.py (C:\bitirm
 import thesis_style as ts
 from closed_loop import run
 from decision import DOM_NAMES
+from battery_model import AGE_BETA
 
 ts.apply()
 RES = os.path.join(HERE, "..", "results")
@@ -29,7 +30,8 @@ ref = pd.read_csv(os.path.join(HERE, "..", "simulink", "twin_reference.csv"))
 I_std = ref.i_pack.values
 I_agg = np.clip(1.6 * I_std, -40.7, 87.3)
 
-A = run(I_agg, T_amb=40, ru_factor=4, soc0=0.95, truth={"r0": 1.4, "r1": 1.4, "r2": 1.4})
+KR80 = 1.0 + AGE_BETA * (1.0 - 0.80)                  # SOH %80 (ömür sonu), veri/age_resistance.py
+A = run(I_agg, T_amb=40, ru_factor=4, soc0=0.95, truth={"capacity_ah": 0.80, "r0": KR80, "r1": KR80, "r2": KR80})
 A["I_dem"] = I_agg
 B = run(I_std[:9000], fault="heat", t_fault=600.0)
 B["I_dem"] = I_std[:9000]
@@ -40,7 +42,7 @@ CRIT = [("psi_T", "Ψ_T core temperature", ts.BLUE), ("psi_C", "Ψ_C cooling ala
 
 fig, ax = plt.subplots(3, 2, figsize=(12.5, 7.6), sharex="col",
                        gridspec_kw=dict(width_ratios=[1.6, 1], height_ratios=[1, 1.25, 1], hspace=0.12, wspace=0.18))
-for c, (d, title) in enumerate(((A, "(a) aged pack (R x1.4), 40 °C, cooling degraded (R_u x4), aggressive drive"),
+for c, (d, title) in enumerate(((A, "(a) aged pack (SOH 80 %: Q x0.8, R x1.26), 40 °C, cooling degraded (R_u x4), aggressive drive"),
                                 (B, "(b) unmodelled external heat at t = 600 s (nominal pack)"))):
     t = d.t.values
     # ---- sıcaklıklar

@@ -14,7 +14,7 @@ Durumlar:  1 NORMAL     tam performans (veri sayfası sınırları)
       Ψ_C    soğutma alarmı (R_u kestirimi)     alarm açık -> 0.3
       Ψ_Tdot yüzey sıcaklığı artış hızı         süzülmüş dT/dt, 3 -> 10 °C/dk, tavan 0.5
              (A2 bulgusu: gizli ısıda Tc_hat gerçeğin 11 °C gerisinde kaldı; hız erken uyarır)
-      Ψ_H    sağlık: EKF R0 ölçeği k_R          1.2 -> 1.6, tavan 0.3 (yaşlanma / direnç artışı)
+      Ψ_H    sağlık: EKF R0 ölçeği k_R          1.2 -> 1.3 (SOH ~%86 -> %80, ömür sonu), tavan 0.3 (yaşlanma / direnç artışı)
       En büyük kriter belirler, diğerleri κ ağırlığıyla ekler (κ = 0: eski max). Yalnız Ψ_T
       1'e ulaşabilir: durdurmak LIMP/SAFE'in işi. Baskın kriter (self.dom) açıklanabilirlik için
       kaydedilir: 0 yok, 1 T, 2 C, 3 Tdot, 4 H. U, I²t ve dengesizlik kriterleri Monte Carlo
@@ -74,7 +74,7 @@ class DecisionParams:
     td_a_f, td_a_r = 0.02, 1.0 / 300.0   # ts/5 s, ts/30 s (Euler)
     tdot_on, tdot_full, psi_tdot = 3.0, 10.0, 0.5
     # Ψ_H: EKF'nin R0 ölçeği k_R (nominal MC: 0,89-1,10)
-    kr_on, kr_full, psi_health = 1.2, 1.6, 0.3
+    kr_on, kr_full, psi_health = 1.2, 1.3, 0.3
     kr_sop_max = 2.0                 # SOP direnci: R0 · clip(k_R, 1, kr_sop_max)
     kappa = 0.25                     # toplama: Ψ = min(1, Ψ_max + κ (ΣΨ_i - Ψ_max))
     ru_alarm = 18.0

@@ -207,10 +207,10 @@ check(17, "temperature-rise-rate criterion", ok,
       f"6 °C/min -> Psi {o[-1, 5]:.3f} (expected {psi_exp:.3f}), dominant {int(o[-1, 6])}, cause {int(o[-1, 4])}, "
       f"DERATE after {(np.argmax(o[:, 0] == 2) - 600) * TS:.0f} s; 2 °C/min with noise -> max Psi {o2[:, 5].max():.3f}")
 
-# U18 Ψ_H (direnç artışı): k_R 1,0 -> 1,4 (yaşlanma) -> Ψ_H = 0,3 (1,4-1,2)/0,4 = 0,15, DERATE, neden 1024;
+# U18 Ψ_H (direnç artışı): k_R 1,0 -> 1,25 (yaşlanma, SOH ~%83) -> Ψ_H = 0,3 (1,25-1,2)/0,1 = 0,15, DERATE, neden 1024;
 # SOP direnci k_R ile ölçeklenir: aynı V_min'de anlık SOP 1/1,4'üne iner
 n = 2000
-kr = np.r_[np.ones(500), np.linspace(1.0, 1.4, 1000), np.full(500, 1.4)]
+kr = np.r_[np.ones(500), np.linspace(1.0, 1.25, 1000), np.full(500, 1.25)]
 o = run(18, seq(n, k_R=kr))
 pp = DecisionParams()
 r0 = pp.r0 * np.exp(pp.ea / pp.rgas * (1 / (30.0 + 273.15) - 1 / 298.15))
@@ -221,7 +221,7 @@ sop14 = 20.0 + pp.k_sop * pp.np_ * (v_lo - pp.v_lim_dis) / (1.4 * r0)
 ok = (abs(o[-1, 5] - 0.15) < 1e-9 and o[-1, 0] == 2 and (int(o[-1, 4]) & 1024) and o[-1, 6] == 4
       and abs(o[-1, 1] - 0.85 * 87.3) < 1e-6 and abs(o3[-1, 1] - sop14) < 1e-6 and (o[:500, 0] == 1).all())
 check(18, "resistance-growth criterion", ok,
-      f"k_R 1.4 -> Psi {o[-1, 5]:.3f}, dominant {int(o[-1, 6])}, I_allow {o[-1, 1]:.1f} A; "
+      f"k_R 1.25 -> Psi {o[-1, 5]:.3f}, dominant {int(o[-1, 6])}, I_allow {o[-1, 1]:.1f} A; "
       f"SOP at V_min {v_lo} V: {o3[-1, 1]:.1f} A (k_R-scaled R0, expected {sop14:.1f})")
 
 # U19 toplama: Ψ_T 0,5 (49 °C) + soğutma 0,3 + Ψ_H 0,3 (k_R 1,6) -> Ψ = 0,5 + 0,25 (0,6) = 0,65,
