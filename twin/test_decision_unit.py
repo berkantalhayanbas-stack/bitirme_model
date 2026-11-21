@@ -9,15 +9,15 @@ olduğunu doğrular (MATLAB ile Python mantığının eşdeğerliği, SIL testin
 import os
 import numpy as np
 import pandas as pd
-from decision import Decision, NAMES
+from decision import Decision, NAMES, DecisionParams
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TS = 0.1
 COLS = ["I_meas", "V_min", "V_max", "Tc_hat", "Ts_hat", "Ru_hat", "SOC_est", "bias_est",
-        "T_valid", "I_valid", "CAN_ok", "T_meas", "T_amb", "T_anom"]
+        "T_valid", "I_valid", "CAN_ok", "T_meas", "T_amb", "T_anom", "k_R"]
 BASE = dict(I_meas=20.0, V_min=3.65, V_max=3.70, Tc_hat=30.0, Ts_hat=29.0, Ru_hat=9.0,
             SOC_est=0.6, bias_est=0.5, T_valid=1, I_valid=1, CAN_ok=1, T_meas=29.0, T_amb=25.0,
-            T_anom=0)
+            T_anom=0, k_R=1.0)
 rows, results = [], []
 
 
@@ -32,20 +32,23 @@ def seq(n, **over):
 N_ZERO = 10      # açılış sıfır akım kontrolü (A9): kontaktör açık, I_allow = 0
 
 
-def run(test_id, inp, i_zero=0.0):
+def run(test_id, inp, i_zero=0.0, params=None):
     """Her testin önüne N_ZERO örneklik açılış kontrolü eklenir (ilk örneğin girdileri, ölçülen
     akım i_zero: kontaktör açıkken akım kesin 0, ölçülen = sensör ofseti). Dönen çıktı bu örnekleri
     içermez (testlerin zaman indeksleri değişmez); test vektörlerine ise girer."""
-    dec = Decision()
+    dec = Decision(params)
     pre = {c: np.full(N_ZERO, inp[c][0]) for c in COLS}
     pre["I_meas"][:] = i_zero
     full = {c: np.concatenate([pre[c], inp[c]]) for c in COLS}
     n = len(full["I_meas"])
-    out = np.zeros((n, 5))
+    out = np.zeros((n, 7))       # durum, I_dis, I_chg, toplam kısıtlama, neden, Ψ, baskın kriter
     for k in range(n):
-        out[k] = dec.step(*[full[c][k] for c in COLS])
-        rows.append(dict(test=test_id, reset=int(k == 0), **{c: full[c][k] for c in COLS},
-                         state=out[k, 0], i_dis=out[k, 1], i_chg=out[k, 2], psi=out[k, 3], cause=out[k, 4]))
+        out[k, :5] = dec.step(*[full[c][k] for c in COLS])
+        out[k, 5:] = dec.psi_s, dec.dom
+        if params is None:       # MATLAB vektörleri yalnız varsayılan parametrelerle
+            rows.append(dict(test=test_id, reset=int(k == 0), **{c: full[c][k] for c in COLS},
+                             state=out[k, 0], i_dis=out[k, 1], i_chg=out[k, 2], psi=out[k, 3], cause=out[k, 4],
+                             psi_s=out[k, 5], dom=out[k, 6]))
     run.pre = out[:N_ZERO]
     return out[N_ZERO:]
 
@@ -187,6 +190,54 @@ k_on = int(np.argmax(o[:, 0] == 3))
 ok = (o[:50, 0] == 1).all() and k_on == 50 and (o[50:, 0] == 3).all() and (o[50:, 4].astype(int) & 257 == 257).all()
 check(16, "thermal anomaly flag", ok,
       f"LIMP-HOME {(k_on - 50) * TS:.1f} s after the flag, cause {int(o[-1, 4])}, I_allow {o[-1, 1]:.1f} A")
+
+# U17 Ψ_Tdot (sıcaklık artış hızı): Tc_hat 30 °C'de sabit (gözlemci gizli ısıyı görmüyor), ölçülen
+# yüzey 6 °C/dk yükselir -> süzülmüş hız ~6 °C/dk, Ψ_Tdot = 0,5 (6-3)/7 = 0,214, DERATE, neden 512+1.
+# Nominal sürüşün en hızlısı (2 °C/dk) gürültülü ölçümle (0,3 °C, 0,1 °C kuantalama) hiç tetiklemez.
+n = 2200                                  # yüzey 29 -> 45 °C (T_ss < 55: LIMP yok)
+tm = 29.0 + np.r_[np.zeros(600), np.arange(n - 600) * 0.01]          # 0,01 °C/örnek = 6 °C/dk
+o = run(17, seq(n, T_meas=tm))
+psi_exp = 0.5 * (6.0 - 3.0) / 7.0
+tm2 = np.round((29.0 + np.arange(n) * 2.0 / 600 + 0.3 * rng.standard_normal(n)) / 0.1) * 0.1
+o2 = run(17, seq(n, T_meas=tm2))
+ok = (abs(o[-1, 5] - psi_exp) < 0.01 and o[-1, 0] == 2 and (int(o[-1, 4]) & 513) == 513 and o[-1, 6] == 3
+      and abs(o[-1, 1] - 87.3 * (1 - o[-1, 5])) < 1e-6 and (o[:600, 0] == 1).all()
+      and (o2[:, 0] == 1).all() and o2[:, 5].max() == 0)
+check(17, "temperature-rise-rate criterion", ok,
+      f"6 °C/min -> Psi {o[-1, 5]:.3f} (expected {psi_exp:.3f}), dominant {int(o[-1, 6])}, cause {int(o[-1, 4])}, "
+      f"DERATE after {(np.argmax(o[:, 0] == 2) - 600) * TS:.0f} s; 2 °C/min with noise -> max Psi {o2[:, 5].max():.3f}")
+
+# U18 Ψ_H (direnç artışı): k_R 1,0 -> 1,4 (yaşlanma) -> Ψ_H = 0,3 (1,4-1,2)/0,4 = 0,15, DERATE, neden 1024;
+# SOP direnci k_R ile ölçeklenir: aynı V_min'de anlık SOP 1/1,4'üne iner
+n = 2000
+kr = np.r_[np.ones(500), np.linspace(1.0, 1.4, 1000), np.full(500, 1.4)]
+o = run(18, seq(n, k_R=kr))
+pp = DecisionParams()
+r0 = pp.r0 * np.exp(pp.ea / pp.rgas * (1 / (30.0 + 273.15) - 1 / 298.15))
+sop1 = 20.0 + pp.k_sop * pp.np_ * (3.65 - pp.v_lim_dis) / r0
+v_lo = 3.05                                                  # SOP'un Ψ'den küçük kaldığı gerilim
+o3 = run(18, seq(600, V_min=v_lo, k_R=1.4))
+sop14 = 20.0 + pp.k_sop * pp.np_ * (v_lo - pp.v_lim_dis) / (1.4 * r0)
+ok = (abs(o[-1, 5] - 0.15) < 1e-9 and o[-1, 0] == 2 and (int(o[-1, 4]) & 1024) and o[-1, 6] == 4
+      and abs(o[-1, 1] - 0.85 * 87.3) < 1e-6 and abs(o3[-1, 1] - sop14) < 1e-6 and (o[:500, 0] == 1).all())
+check(18, "resistance-growth criterion", ok,
+      f"k_R 1.4 -> Psi {o[-1, 5]:.3f}, dominant {int(o[-1, 6])}, I_allow {o[-1, 1]:.1f} A; "
+      f"SOP at V_min {v_lo} V: {o3[-1, 1]:.1f} A (k_R-scaled R0, expected {sop14:.1f})")
+
+# U19 toplama: Ψ_T 0,5 (49 °C) + soğutma 0,3 + Ψ_H 0,3 (k_R 1,6) -> Ψ = 0,5 + 0,25 (0,6) = 0,65,
+# baskın kriter T; κ = 0 eski max davranışını verir (Ψ = 0,5)
+n = 1800
+tc = np.r_[np.linspace(30, 49, 600), np.full(n - 600, 49.0)]
+ru = np.r_[np.full(1300, 9.0), np.full(n - 1300, 25.0)]
+inp = seq(n, Tc_hat=tc, Ru_hat=ru, k_R=1.6)
+o = run(19, inp)
+p0 = DecisionParams(); p0.kappa = 0.0
+o0 = run(19, inp, params=p0)
+ok = (abs(o[-1, 5] - 0.65) < 1e-9 and o[-1, 6] == 1 and abs(o[-1, 1] - 0.35 * 87.3) < 1e-6
+      and abs(o0[-1, 5] - 0.5) < 1e-9 and abs(o0[-1, 1] - 0.5 * 87.3) < 1e-6)
+check(19, "multi-criteria aggregation", ok,
+      f"Psi_i = (0.5, 0.3, 0, 0.3) -> Psi {o[-1, 5]:.3f} (kappa 0.25), {o0[-1, 5]:.3f} (kappa 0 = max), "
+      f"dominant {int(o[-1, 6])}, I_allow {o[-1, 1]:.1f} A")
 
 V = pd.DataFrame(rows)
 V.to_csv(os.path.join(HERE, "..", "simulink", "decision_vectors.csv"), index=False)

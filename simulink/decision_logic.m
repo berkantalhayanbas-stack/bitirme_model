@@ -1,15 +1,22 @@
-function [state, I_allow_dis, I_allow_chg, psi, cause] = decision_logic(I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est, T_valid, I_valid, CAN_ok, T_meas, T_amb, T_anom)
+function [state, I_allow_dis, I_allow_chg, psi, cause, psi_s, dom, psi_i, tdot] = decision_logic(I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est, T_valid, I_valid, CAN_ok, T_meas, T_amb, T_anom, k_R)
 %DECISION_LOGIC  Güvenli karar mekanizması (Hedef 4): 4 durumlu makine + izin verilen akım.
 %   Durumlar: 1 NORMAL, 2 DERATE, 3 LIMP-HOME, 4 SAFE-STOP (kilitlenir; çıkış: clear decision_logic)
 %   Çıkışlar: I_allow_dis / I_allow_chg (pozitif büyüklük, A), psi = 1 - I_allow_dis/I_nom,
 %             cause = neden bitleri: 1 sıcaklık, 2 soğutma alarmı, 4 deşarj gerilim payı,
 %             8 şarj gerilim payı, 16 veri sayfası sıcaklık sınırı, 32 sensör, 64 boş, 128 sert sınır,
-%             256 termal anomali (thermal_anomaly_step.m; 1 de kurulur: CAN 0x201'de cause 8 bit)
+%             256 termal anomali (thermal_anomaly_step.m; 1 de kurulur: CAN 0x201'de cause 8 bit),
+%             512 sıcaklık artış hızı (Ψ_Tdot > 0; 1 de kurulur), 1024 direnç artışı (Ψ_H > 0)
+%             psi_s = çok kriterli stres indeksi Ψ, dom = baskın kriter (0 yok, 1 T, 2 C, 3 Tdot, 4 H),
+%             psi_i = [Ψ_T Ψ_C Ψ_Tdot Ψ_H], tdot = süzülmüş yüzey sıcaklığı artış hızı [°C/dk]
 %   T_anom (isteğe bağlı, varsayılan 0): açıklanamayan ısı -> LIMP-HOME
+%   k_R (isteğe bağlı, varsayılan 1): EKF R0 ölçeği -> Ψ_H ve SOP direnci R0·clip(k_R,1,2)
 %
 %   I_allow = rampa( min( I_veri_sayfası(T_surf) * (1 - Ψ),  I_SOP ) )
-%     Ψ = max(Ψ_sıcaklık, Ψ_soğutma): 43→55 °C doğrusal (45 °C'de başlar, 43 altında kalkar);
-%         soğutma alarmı (R_u > 18 K/W'ta açılır, < 15 K/W'ta kalkar; ilk 120 s yok) 0.3 önleyici kısıtlama
+%     Ψ = min(1, Ψ_max + κ (ΣΨ_i - Ψ_max)), κ = 0.25 (κ = 0: eski max):
+%       Ψ_T    43→55 °C doğrusal (45 °C'de başlar, 43 altında kalkar), tavan 1
+%       Ψ_C    soğutma alarmı (R_u > 18 K/W'ta açılır, < 15 K/W'ta kalkar; ilk 120 s yok) 0.3
+%       Ψ_Tdot ölçülen yüzey T'nin süzülmüş artış hızı 3→10 °C/dk, tavan 0.5
+%       Ψ_H    EKF R0 ölçeği k_R 1.2→1.6, tavan 0.3
 %     I_SOP (hızlı, akımı keser) = |I| + k·Np·(V - V_sınır)/R0(T); gerilim eşiği yerine akım sınırı
 %     Durum için yavaş kapasite tahmini: SOP_qs = Np·(V ± |i|R0 - V_sınır)/(R0+R1+R2),
 %         < %90 · veri sayfası sınırı -> neden; ≥ %100 -> kalkar (histerezis bandı)
@@ -24,6 +31,7 @@ function [state, I_allow_dis, I_allow_chg, psi, cause] = decision_logic(I_meas, 
 
 %#codegen
 if nargin < 14, T_anom = 0; end
+if nargin < 15, k_R = 1; end
 persistent P D
 if isempty(P)
     P = bms_param_struct();
@@ -31,11 +39,55 @@ end
 if isempty(D)
     D = struct('state', 1, 'n_ok', 0, 'n_lo', 0, 'n_hi', 0, 'therm_on', false, 'cool_on', false, 'n_run', 0, 'n_hl', 0, 'n_hs', 0, ...
                'f_ds', false, 'f_sop_dis', false, 'f_sop_chg', false, 'i_dis', 0, 'i_chg', 0, ...
-               'n_zero', 0, 'i0_sum', 0, 'i0_ok', true, 'zero_bad', false);
+               'n_zero', 0, 'i0_sum', 0, 'i0_ok', true, 'zero_bad', false, ...
+               'td_on', false, 't_f', 0, 'tdot', 0);
 end
 ts = P.Ts;  np_ = P.Np;
 I_nom_dis = max(P.dec_I_dis) * np_;
 I_nom_chg = max(P.dec_I_chg) * np_;
+
+% ---------------------------------------------------- stres indeksi (SAFE'te de hesaplanır: telemetri)
+if Tc_hat >= P.dec_T_der_on
+    D.therm_on = true;
+elseif Tc_hat < P.dec_T_der_off
+    D.therm_on = false;
+end
+psi_T = 0;
+if D.therm_on
+    psi_T = min(max((Tc_hat - P.dec_T_der_off) / (P.dec_T_der_full - P.dec_T_der_off), 0), 1);
+end
+n_blank = round(P.dec_t_cool_blank / ts);
+if D.n_run < n_blank, D.n_run = D.n_run + 1; end
+if D.n_run < n_blank                    % gözlemci yakınsıyor: alarm yok
+    D.cool_on = false;
+elseif Ru_hat > P.dec_ru_alarm
+    D.cool_on = true;
+elseif Ru_hat < P.dec_ru_alarm_off
+    D.cool_on = false;
+end
+psi_C = 0;
+if D.cool_on
+    psi_C = P.dec_psi_cool;
+end
+if T_valid >= 0.5                       % sıcaklık artış hızı; sensör geçersizse süzgeç yeniden başlar
+    if D.td_on
+        t_prev = D.t_f;
+        D.t_f = D.t_f + P.dec_td_a_f * (T_meas - D.t_f);
+        D.tdot = D.tdot + P.dec_td_a_r * (60 * (D.t_f - t_prev) / ts - D.tdot);
+    else
+        D.td_on = true;  D.t_f = T_meas;  D.tdot = 0;
+    end
+else
+    D.td_on = false;  D.tdot = 0;
+end
+psi_D = P.dec_psi_tdot * min(max((D.tdot - P.dec_tdot_on) / (P.dec_tdot_full - P.dec_tdot_on), 0), 1);
+psi_H = P.dec_psi_health * min(max((k_R - P.dec_kr_on) / (P.dec_kr_full - P.dec_kr_on), 0), 1);
+psi_i = [psi_T psi_C psi_D psi_H];
+[pm, im] = max(psi_i);                  % ilk en büyük: Python index() ile aynı
+psi_s = min(1, pm + P.dec_kappa * (sum(psi_i) - pm));
+dom = 0;
+if pm > 0, dom = im; end
+tdot = D.tdot;
 
 % ---------------------------------------------------- sert sınırlar (kilitlenir)
 % sayaçlar örnek cinsinden (tamsayı): 10 x 0.1 kayan noktada tam 1.0 etmez
@@ -74,33 +126,8 @@ i_ds_dis = interp1(P.dec_T_dis, P.dec_I_dis, Ts_hat, 'linear', 0) * np_;
 i_ds_chg = interp1(P.dec_T_chg, P.dec_I_chg, Ts_hat, 'linear', 0) * np_;
 D.f_ds = band(D.f_ds, min(i_ds_dis / I_nom_dis, i_ds_chg / I_nom_chg), P);
 
-% ---------------------------------------------------- stres indeksi
-if Tc_hat >= P.dec_T_der_on
-    D.therm_on = true;
-elseif Tc_hat < P.dec_T_der_off
-    D.therm_on = false;
-end
-psi_T = 0;
-if D.therm_on
-    psi_T = min(max((Tc_hat - P.dec_T_der_off) / (P.dec_T_der_full - P.dec_T_der_off), 0), 1);
-end
-n_blank = round(P.dec_t_cool_blank / ts);
-if D.n_run < n_blank, D.n_run = D.n_run + 1; end
-if D.n_run < n_blank                    % gözlemci yakınsıyor: alarm yok
-    D.cool_on = false;
-elseif Ru_hat > P.dec_ru_alarm
-    D.cool_on = true;
-elseif Ru_hat < P.dec_ru_alarm_off
-    D.cool_on = false;
-end
-psi_C = 0;
-if D.cool_on
-    psi_C = P.dec_psi_cool;
-end
-psi_s = max(psi_T, psi_C);
-
 % ---------------------------------------------------- gerilim payı (SOP)
-r0 = P.r0 * exp(P.ea_r0 / P.Rgas * (1/(Tc_hat + 273.15) - 1/298.15));
+r0 = P.r0 * min(max(k_R, 1), P.dec_kr_sop_max) * exp(P.ea_r0 / P.Rgas * (1/(Tc_hat + 273.15) - 1/298.15));
 sop_dis = max(I_meas, 0) + P.dec_k_sop * np_ * (V_min - P.dec_v_lim_dis) / r0;
 sop_chg = max(-I_meas, 0) + P.dec_k_sop * np_ * (P.dec_v_lim_chg - V_max) / r0;
 r_dc = r0 + P.r1 * exp(P.ea_r1 / P.Rgas * (1/(Tc_hat + 273.15) - 1/298.15)) ...
@@ -124,8 +151,8 @@ if limp
     tgt_chg = min(tgt_chg, P.dec_floor * I_nom_chg);
 end
 
-cause = 1*(psi_T > 0 || hot_ss || T_anom > 0.5) + 2*(psi_C > 0) + 4*D.f_sop_dis + 8*D.f_sop_chg + 16*D.f_ds ...
-      + 32*sensor_bad + 64*empty + 256*(T_anom > 0.5);
+cause = 1*(psi_T > 0 || hot_ss || T_anom > 0.5 || psi_D > 0) + 2*(psi_C > 0) + 4*D.f_sop_dis + 8*D.f_sop_chg + 16*D.f_ds ...
+      + 32*sensor_bad + 64*empty + 256*(T_anom > 0.5) + 512*(psi_D > 0) + 1024*(psi_H > 0);
 
 % ---------------------------------------------------- durum + histerezis
 if limp

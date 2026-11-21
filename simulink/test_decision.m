@@ -1,6 +1,6 @@
 %TEST_DECISION  3. hafta: güvenli karar mekanizmasının testi (FMEA test matrisi).
 %   A) Birim test vektörleri: twin/test_decision_unit.py'nin ürettiği girdiler (decision_vectors.csv)
-%      decision_logic.m'ye verilir; çıktılar Python ile BİREBİR aynı olmalı (15 birim test).
+%      decision_logic.m'ye verilir; çıktılar (Ψ ve baskın kriter dahil) Python ile BİREBİR aynı olmalı.
 %   B) Kapalı çevrim (Simulink, Dec_on = 1), karar mekanizması yok/var karşılaştırmalı:
 %      S1 normal sürüş                            -> yanlış kısıtlama yok
 %      S2 40 °C + soğutma arızası + agresif sürüş -> T_core < 55 °C (mekanizmasız aşıyor)
@@ -15,21 +15,22 @@
 % ================================================================== A) birim test vektörleri
 V = readtable('decision_vectors.csv');
 n = height(V);
-out = zeros(n, 5);
+out = zeros(n, 7);
 for k = 1:n
     if V.reset(k), clear decision_logic; end
-    [s, a, b, p, c] = decision_logic(V.I_meas(k), V.V_min(k), V.V_max(k), V.Tc_hat(k), V.Ts_hat(k), ...
-        V.Ru_hat(k), V.SOC_est(k), V.bias_est(k), V.T_valid(k), V.I_valid(k), V.CAN_ok(k), V.T_meas(k), V.T_amb(k), V.T_anom(k));
-    out(k, :) = [s a b p c];
+    [s, a, b, p, c, ps, dm] = decision_logic(V.I_meas(k), V.V_min(k), V.V_max(k), V.Tc_hat(k), V.Ts_hat(k), ...
+        V.Ru_hat(k), V.SOC_est(k), V.bias_est(k), V.T_valid(k), V.I_valid(k), V.CAN_ok(k), V.T_meas(k), V.T_amb(k), ...
+        V.T_anom(k), V.k_R(k));
+    out(k, :) = [s a b p c ps dm];
 end
 clear decision_logic
-ref5 = [V.state V.i_dis V.i_chg V.psi V.cause];
+ref5 = [V.state V.i_dis V.i_chg V.psi V.cause V.psi_s V.dom];
 d_state = sum(out(:,1) ~= ref5(:,1));
-d_cause = sum(out(:,5) ~= ref5(:,5));
-d_cur   = max(max(abs(out(:,2:4) - ref5(:,2:4))));
+d_cause = sum(out(:,5) ~= ref5(:,5)) + sum(out(:,7) ~= ref5(:,7));
+d_cur   = max(max(abs(out(:,[2:4 6]) - ref5(:,[2:4 6]))));
 fprintf('=== A) Unit-test vectors: MATLAB decision_logic vs Python decision.py (%d samples, %d tests) ===\n', ...
         n, numel(unique(V.test)));
-fprintf('State mismatches: %d   cause mismatches: %d   max |current/psi difference|: %.2e\n', d_state, d_cause, d_cur);
+fprintf('State mismatches: %d   cause/dominant mismatches: %d   max |current/psi/Psi difference|: %.2e\n', d_state, d_cause, d_cur);
 okA = d_state == 0 && d_cause == 0 && d_cur < 1e-9;
 fprintf('Acceptance A (MATLAB and Python logic identical): %s\n\n', pf(okA));
 

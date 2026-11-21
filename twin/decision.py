@@ -9,9 +9,19 @@ Durumlar:  1 NORMAL     tam performans (veri sayfası sınırları)
 İzin verilen akım (deşarj ve şarj ayrı, her ikisi de pozitif büyüklük):
   I_allow = rate_limit( min( I_datasheet(T) · (1 - Ψ),  I_SOP ) )   [LIMP-HOME'da ayrıca ≤ taban]
     I_datasheet(T): LG M50T veri sayfasının sıcaklığa bağlı sürekli akım sınırları × Np
-    Ψ (stres indeksi, 0..1) = max(Ψ_sıcaklık, Ψ_soğutma)       çok kriterli, en kötü kriter belirler
+    Ψ (çok kriterli stres indeksi, 0..1) = min(1, Ψ_max + κ·(ΣΨ_i - Ψ_max)),  κ = 0.25
+      Ψ_T    çekirdek sıcaklığı (Tc_hat)        45 °C'de başlar (43 -> 55 °C doğrusal), tavan 1.0
+      Ψ_C    soğutma alarmı (R_u kestirimi)     alarm açık -> 0.3
+      Ψ_Tdot yüzey sıcaklığı artış hızı         süzülmüş dT/dt, 3 -> 10 °C/dk, tavan 0.5
+             (A2 bulgusu: gizli ısıda Tc_hat gerçeğin 11 °C gerisinde kaldı; hız erken uyarır)
+      Ψ_H    sağlık: EKF R0 ölçeği k_R          1.2 -> 1.6, tavan 0.3 (yaşlanma / direnç artışı)
+      En büyük kriter belirler, diğerleri κ ağırlığıyla ekler (κ = 0: eski max). Yalnız Ψ_T
+      1'e ulaşabilir: durdurmak LIMP/SAFE'in işi. Baskın kriter (self.dom) açıklanabilirlik için
+      kaydedilir: 0 yok, 1 T, 2 C, 3 Tdot, 4 H. U, I²t ve dengesizlik kriterleri Monte Carlo
+      sinyal taramasıyla elendi (2026-11-21; tez notu).
     I_SOP: gerilim payına dayalı güç sınırı (state of power). Hücre gerilimi sınıra yaklaştıkça
            akım kısılır:  I_SOP = |I_şimdi| + k · Np · (V_ölçülen - V_sınır) / R0(T)
+                R0(T) = R0 · clip(k_R, 1, 2) · Arrhenius(T): EKF'nin bulduğu direnç artışı SOP'u da kısar.
            Gerilime eşik koymak yerine akımı sınırlamak, yük altı gerilim çukurlarında alarm
            titreşimini ortadan kaldırır (bulgu 16) ve şarjda kendiliğinden CC-CV davranışı verir.
            Bu hızlı sınır akımı keser ama DURUMU belirlemez (her ivmelenmede devreye girip çıkar).
@@ -39,6 +49,10 @@ NAMES = {1: "NORMAL", 2: "DERATE", 3: "LIMP-HOME", 4: "SAFE-STOP"}
 # neden bitleri (fault/cause code)
 C_THERM, C_COOL, C_SOP_DIS, C_SOP_CHG, C_DS_T, C_SENSOR, C_EMPTY, C_HARD = 1, 2, 4, 8, 16, 32, 64, 128
 C_ANOM = 256    # termal anomali (thermal_anomaly.py); 0x201'de cause 8 bit: C_THERM de kurulur
+C_TDOT = 512    # sıcaklık artış hızı (Ψ_Tdot > 0); 0x201'de C_THERM de kurulur
+C_HEALTH = 1024 # direnç artışı (Ψ_H > 0); 0x201'de 8 bitlik karşılığı yok (yalnız UART telemetrisi)
+DOM_NONE, DOM_T, DOM_C, DOM_TDOT, DOM_H = 0, 1, 2, 3, 4
+DOM_NAMES = {0: "none", 1: "core temperature", 2: "cooling", 3: "temperature rise rate", 4: "cell resistance"}
 # C_DS_T: veri sayfasının sıcaklığa bağlı akım sınırı nominalin altında (soğuk veya çok sıcak hücre)
 
 
@@ -53,6 +67,15 @@ class DecisionParams:
     # stres indeksi
     T_der_on, T_der_off, T_der_full = 45.0, 43.0, 55.0
     psi_cool = 0.3
+    # Ψ_Tdot: ölçülen yüzey sıcaklığının süzülmüş artış hızı [°C/dk]. T_f = T_ölç'ün 5 s alçak
+    # geçireni; hız = 60·ΔT_f/ts, 30 s alçak geçirenden geçer (MC taraması: nominal en çok 2,3 °C/dk,
+    # dış ısı ~23 °C/dk)
+    td_a_f, td_a_r = 0.02, 1.0 / 300.0   # ts/5 s, ts/30 s (Euler)
+    tdot_on, tdot_full, psi_tdot = 3.0, 10.0, 0.5
+    # Ψ_H: EKF'nin R0 ölçeği k_R (nominal MC: 0,89-1,10)
+    kr_on, kr_full, psi_health = 1.2, 1.6, 0.3
+    kr_sop_max = 2.0                 # SOP direnci: R0 · clip(k_R, 1, kr_sop_max)
+    kappa = 0.25                     # toplama: Ψ = min(1, Ψ_max + κ (ΣΨ_i - Ψ_max))
     ru_alarm = 18.0
     ru_alarm_off = 15.0     # histerezis: R_u kestirimi eşik çevresinde yakınsarken alarm titriyordu (HIL)
     t_cool_blank = 120.0    # açılıştan sonra soğutma alarmı yok: gözlemci sıcak/yüklü pakette başlarsa
@@ -113,6 +136,12 @@ class Decision:
         self.i0_sum = 0.0
         self.i0_ok = True
         self.zero_bad = False
+        self.td_on = False             # Ψ_Tdot süzgeci başladı mı
+        self.t_f = 0.0
+        self.tdot = 0.0                # [°C/dk]
+        self.psi_i = (0.0, 0.0, 0.0, 0.0)   # Ψ_T, Ψ_C, Ψ_Tdot, Ψ_H (son adım)
+        self.psi_s = 0.0               # çok kriterli Ψ
+        self.dom = DOM_NONE            # baskın kriter
 
     def _band(self, flag, ratio):
         """Histerezis bandı: oran band_on altına inince bayrak kalkar, band_off üstüne çıkınca iner."""
@@ -123,9 +152,42 @@ class Decision:
         return flag
 
     def step(self, I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est,
-             T_valid=1, I_valid=1, CAN_ok=1, T_meas=None, T_amb=None, T_anom=0):
+             T_valid=1, I_valid=1, CAN_ok=1, T_meas=None, T_amb=None, T_anom=0, k_R=1.0):
         p = self.p
         cause = 0
+        # ---------------------------------------------------- stres indeksi (SAFE'te de hesaplanır:
+        # telemetri Ψ'yi her durumda gösterir; I_allow'a etkisi aşağıda)
+        if Tc_hat >= p.T_der_on:
+            self.therm_on = True
+        elif Tc_hat < p.T_der_off:
+            self.therm_on = False
+        psi_T = float(np.clip((Tc_hat - p.T_der_off) / (p.T_der_full - p.T_der_off), 0, 1)) if self.therm_on else 0.0
+        n_blank = round(p.t_cool_blank / p.ts)
+        if self.n_run < n_blank:
+            self.n_run += 1
+        if self.n_run < n_blank:
+            self.cool_on = False
+        elif Ru_hat > p.ru_alarm:
+            self.cool_on = True
+        elif Ru_hat < p.ru_alarm_off:
+            self.cool_on = False
+        psi_C = p.psi_cool if self.cool_on else 0.0
+        if T_meas is not None and T_valid >= 0.5:      # sensör geçersizse süzgeç sıfırdan başlar
+            if self.td_on:
+                t_prev = self.t_f
+                self.t_f += p.td_a_f * (T_meas - self.t_f)
+                self.tdot += p.td_a_r * (60.0 * (self.t_f - t_prev) / p.ts - self.tdot)
+            else:
+                self.td_on, self.t_f, self.tdot = True, T_meas, 0.0
+        else:
+            self.td_on, self.tdot = False, 0.0
+        psi_D = p.psi_tdot * float(np.clip((self.tdot - p.tdot_on) / (p.tdot_full - p.tdot_on), 0, 1))
+        psi_H = p.psi_health * float(np.clip((k_R - p.kr_on) / (p.kr_full - p.kr_on), 0, 1))
+        self.psi_i = (psi_T, psi_C, psi_D, psi_H)
+        pm = max(self.psi_i)
+        self.psi_s = min(1.0, pm + p.kappa * (sum(self.psi_i) - pm))
+        self.dom = 1 + self.psi_i.index(pm) if pm > 0 else DOM_NONE
+        psi = self.psi_s
         # ---------------------------------------------------- sert sınırlar (kilitlenir)
         n_hard = round(p.t_hard / p.ts)
         self.n_lo = self.n_lo + 1 if V_min < p.v_safe_lo else 0
@@ -159,28 +221,14 @@ class Decision:
         if self.f_ds:
             cause |= C_DS_T
 
-        # ---------------------------------------------------- stres indeksi
-        if Tc_hat >= p.T_der_on:
-            self.therm_on = True
-        elif Tc_hat < p.T_der_off:
-            self.therm_on = False
-        psi_T = np.clip((Tc_hat - p.T_der_off) / (p.T_der_full - p.T_der_off), 0, 1) if self.therm_on else 0.0
-        n_blank = round(p.t_cool_blank / p.ts)
-        if self.n_run < n_blank:
-            self.n_run += 1
-        if self.n_run < n_blank:
-            self.cool_on = False
-        elif Ru_hat > p.ru_alarm:
-            self.cool_on = True
-        elif Ru_hat < p.ru_alarm_off:
-            self.cool_on = False
-        psi_C = p.psi_cool if self.cool_on else 0.0
+        # ---------------------------------------------------- stres indeksinin neden bitleri
         if psi_T > 0: cause |= C_THERM
         if psi_C > 0: cause |= C_COOL
-        psi = max(psi_T, psi_C)
+        if psi_D > 0: cause |= C_TDOT | C_THERM
+        if psi_H > 0: cause |= C_HEALTH
 
         # ---------------------------------------------------- gerilim payı (SOP)
-        r0 = p.r0 * np.exp(p.ea / p.rgas * (1 / (Tc_hat + 273.15) - 1 / 298.15))
+        r0 = p.r0 * min(max(k_R, 1.0), p.kr_sop_max) * np.exp(p.ea / p.rgas * (1 / (Tc_hat + 273.15) - 1 / 298.15))
         i_dis_now, i_chg_now = max(I_meas, 0.0), max(-I_meas, 0.0)
         sop_dis = i_dis_now + p.k_sop * p.np_ * (V_min - p.v_lim_dis) / r0
         sop_chg = i_chg_now + p.k_sop * p.np_ * (p.v_lim_chg - V_max) / r0

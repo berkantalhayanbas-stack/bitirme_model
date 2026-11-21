@@ -112,6 +112,17 @@ P.dec_T_der_on   = 45;    % [°C] sıcaklık kısıtlaması başlar (T_core kest
 P.dec_T_der_off  = 43;    % [°C] altına inince kalkar (histerezis); Ψ 43->55 °C doğrusal
 P.dec_T_der_full = 55;
 P.dec_psi_cool   = 0.3;   % soğutma alarmında önleyici kısıtlama
+% çok kriterli stres indeksi: Ψ = min(1, Ψ_max + κ (ΣΨ_i - Ψ_max)), Ψ_i = [T C Tdot H]
+P.dec_td_a_f     = 0.02;      % Ψ_Tdot: ölçülen yüzey T'nin 5 s alçak geçireni (ts/5)
+P.dec_td_a_r     = 1/300;     %   artış hızının 30 s alçak geçireni (ts/30)
+P.dec_tdot_on    = 3;     % [°C/dk] Ψ_Tdot başlar (nominal MC en çok 2,3 °C/dk)
+P.dec_tdot_full  = 10;    % [°C/dk] tavana ulaşır
+P.dec_psi_tdot   = 0.5;   % Ψ_Tdot tavanı
+P.dec_kr_on      = 1.2;   % Ψ_H: EKF R0 ölçeği k_R (nominal MC 0,89-1,10)
+P.dec_kr_full    = 1.6;
+P.dec_psi_health = 0.3;   % Ψ_H tavanı
+P.dec_kr_sop_max = 2.0;   % SOP direnci R0 · clip(k_R, 1, 2) · Arrhenius(T)
+P.dec_kappa      = 0.25;  % toplama ağırlığı (0: eski max)
 P.dec_ru_alarm   = 18;    % [K/W] 2 x nominal R_u
 P.dec_ru_alarm_off = 15;  % [K/W] altına inince kalkar (histerezis)
 P.dec_t_cool_blank = 120; % [s] açılıştan sonra soğutma alarmı yok (gözlemci yakınsaması)

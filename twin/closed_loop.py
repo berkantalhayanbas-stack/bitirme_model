@@ -63,7 +63,8 @@ def run(I_dem, T_amb=25.0, ru_factor=1.0, soc0=0.8, weak=False, use_decision=Tru
     canrx = CanRx(DT, **(can or {}))
     log = {k: np.zeros(n) for k in ("I", "soc", "soc_w", "tc", "ts", "vmin", "vmax", "soc_est",
                                     "tc_hat", "ru_hat", "anom", "state", "i_dis", "i_chg", "psi", "cause",
-                                    "can_ok", "can_fault", "im", "vm", "tm", "vmin_m", "vmax_m")}
+                                    "can_ok", "can_fault", "im", "vm", "tm", "vmin_m", "vmax_m",
+                                    "psi_T", "psi_C", "psi_D", "psi_H", "psi_s", "dom", "tdot", "kr")}
     for k in range(n):
         I = float(np.clip(I_dem[k], -i_chg, i_dis))
         a = avg.step(I, DT)
@@ -108,9 +109,14 @@ def run(I_dem, T_amb=25.0, ru_factor=1.0, soc0=0.8, weak=False, use_decision=Tru
             xt = th.x.copy()
         if use_decision:
             st, i_dis, i_chg, psi, cause = dec.step(im, vmin_m, vmax_m, xt[0], xt[1], 1 / xt[2],
-                                                    x[0], x[3], tv, iv, can_ok, tm, T_amb, anom)
+                                                    x[0], x[3], tv, iv, can_ok, tm, T_amb, anom,
+                                                    x[4] if len(x) > 4 else 1.0)
         else:
             st, psi, cause = 1, 0.0, 0
+        for key, val in zip(("psi_T", "psi_C", "psi_D", "psi_H"), dec.psi_i):
+            log[key][k] = val
+        log["psi_s"][k], log["dom"][k], log["tdot"][k] = dec.psi_s, dec.dom, dec.tdot
+        log["kr"][k] = x[4] if len(x) > 4 else 1.0
         for key, val in (("I", I), ("soc", a["soc"]), ("tc", a["t_core"]), ("ts", a["t_surf"]),
                          ("vmin", vmin), ("vmax", vmax), ("soc_est", x[0]), ("tc_hat", xt[0]),
                          ("ru_hat", 1 / xt[2]), ("anom", anom), ("state", st), ("i_dis", i_dis), ("i_chg", i_chg),

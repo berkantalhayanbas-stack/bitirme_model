@@ -1,4 +1,4 @@
-function [SOC_est, bias_est, innov, rejected] = ekf_soc(I_meas, V_meas, T_meas, T_valid, Ts_hat_prev, Gate_on, Q_scale, R_scale, Zero_on)
+function [SOC_est, bias_est, innov, rejected, k_R] = ekf_soc(I_meas, V_meas, T_meas, T_valid, Ts_hat_prev, Gate_on, Q_scale, R_scale, Zero_on)
 %EKF_SOC  Paket seviyesi 5 durumlu Genişletilmiş Kalman Filtresi.
 %   x = [SOC; V1; V2; b_I; k_R]   (b_I: akım sensörü kayması, k_R: gerçek R0 / nominal R0)
 %   k_R olmadan R0 uyumsuzluğu (yaşlanma) b_I'ya yükleniyor, sahte sensör arızası veriyordu (A7).
@@ -111,4 +111,5 @@ end
 
 SOC_est  = x(1);
 bias_est = x(4);
+k_R = x(5);                 % R0 ölçeği: karar mekanizmasının Ψ_H kriteri ve SOP direnci
 end
