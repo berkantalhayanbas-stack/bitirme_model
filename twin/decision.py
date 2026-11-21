@@ -51,6 +51,7 @@ C_THERM, C_COOL, C_SOP_DIS, C_SOP_CHG, C_DS_T, C_SENSOR, C_EMPTY, C_HARD = 1, 2,
 C_ANOM = 256    # termal anomali (thermal_anomaly.py); 0x201'de cause 8 bit: C_THERM de kurulur
 C_TDOT = 512    # sıcaklık artış hızı (Ψ_Tdot > 0); 0x201'de C_THERM de kurulur
 C_HEALTH = 1024 # direnç artışı (Ψ_H > 0); 0x201'de 8 bitlik karşılığı yok (yalnız UART telemetrisi)
+C_TEVT = 2048   # termal olay: SAFE'te akım yokken yüzey ortamın üstünde ısınıyor (kilitli; 0x201'de karşılığı yok)
 DOM_NONE, DOM_T, DOM_C, DOM_TDOT, DOM_H = 0, 1, 2, 3, 4
 DOM_NAMES = {0: "none", 1: "core temperature", 2: "cooling", 3: "temperature rise rate", 4: "cell resistance"}
 # C_DS_T: veri sayfasının sıcaklığa bağlı akım sınırı nominalin altında (soğuk veya çok sıcak hücre)
@@ -95,6 +96,10 @@ class DecisionParams:
     k_ss = 1.8 / 9.0                      # Rc / Ru_nom
     soc_empty = 0.03
     v_safe_lo, v_safe_hi, t_hard = 2.50, 4.25, 1.0
+    # termal olay (SAFE'ten sonra, bms_config.h DEC_TE_*): kontaktör açık, |I| < te_i_max, yüzey > ortam ve
+    # süzülmüş artış hızı > te_rate, te_n örnek. Isı dengelenmesi (τ ~ 8 s) yanlış alarm vermesin diye
+    # anomali kilitli değilse akım te_wait boyunca ~0 kalmış olmalı.
+    te_i_max, te_rate, te_wait, te_n = 2.0, 1.0, 900, 10
     bias_max = 8.0          # [A] EKF kayma kestiriminin makullük sınırı. 5 A idi: direnç uyumsuzluğunda
                             # (R1 x1,5, tau2 x0,5; A3) kestirim 5,9 A'ya çıkıp sahte LIMP veriyordu.
                             # Daha küçük gerçek kaymaları EKF telafi ediyor (6 A: SOC hatası <= %2,3)
@@ -139,6 +144,8 @@ class Decision:
         self.td_on = False             # Ψ_Tdot süzgeci başladı mı
         self.t_f = 0.0
         self.tdot = 0.0                # [°C/dk]
+        self.n_i0 = self.n_te = 0      # termal olay: SAFE'te akımsız örnek, koşul süresi
+        self.tevt = False              # termal olay (kilitlenir)
         self.psi_i = (0.0, 0.0, 0.0, 0.0)   # Ψ_T, Ψ_C, Ψ_Tdot, Ψ_H (son adım)
         self.psi_s = 0.0               # çok kriterli Ψ
         self.dom = DOM_NONE            # baskın kriter
@@ -203,7 +210,13 @@ class Decision:
         if hard or self.state == SAFE:
             self.state = SAFE
             self.i_dis = self.i_chg = 0.0
-            return self.state, 0.0, 0.0, 1.0, C_HARD
+            self.n_i0 = min(self.n_i0 + 1, p.te_wait) if abs(I_meas) < p.te_i_max else 0
+            rising = (CAN_ok >= 0.5 and T_valid >= 0.5 and T_meas is not None and T_meas > T_amb
+                      and self.tdot > p.te_rate)
+            self.n_te = self.n_te + 1 if rising and self.n_i0 > 0 and (T_anom or self.n_i0 >= p.te_wait) else 0
+            if self.n_te >= p.te_n:
+                self.tevt = True
+            return self.state, 0.0, 0.0, 1.0, C_HARD | (C_TEVT if self.tevt else 0)
         n_zero = round(p.t_zero / p.ts)
         zeroing = self.n_zero < n_zero             # kontaktör açık: akım kesin 0
         if zeroing:                                # geçersiz örnek varsa sonuç yok (I_valid zaten LIMP)

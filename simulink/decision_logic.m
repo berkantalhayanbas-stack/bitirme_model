@@ -5,6 +5,7 @@ function [state, I_allow_dis, I_allow_chg, psi, cause, psi_s, dom, psi_i, tdot] 
 %             cause = neden bitleri: 1 sıcaklık, 2 soğutma alarmı, 4 deşarj gerilim payı,
 %             8 şarj gerilim payı, 16 veri sayfası sıcaklık sınırı, 32 sensör, 64 boş, 128 sert sınır,
 %             256 termal anomali (thermal_anomaly_step.m; 1 de kurulur: CAN 0x201'de cause 8 bit),
+%             2048 termal olay (yalnız SAFE'te: akım yokken yüzey ortamın üstünde ısınıyor; kilitli),
 %             512 sıcaklık artış hızı (Ψ_Tdot > 0; 1 de kurulur), 1024 direnç artışı (Ψ_H > 0)
 %             psi_s = çok kriterli stres indeksi Ψ, dom = baskın kriter (0 yok, 1 T, 2 C, 3 Tdot, 4 H),
 %             psi_i = [Ψ_T Ψ_C Ψ_Tdot Ψ_H], tdot = süzülmüş yüzey sıcaklığı artış hızı [°C/dk]
@@ -40,7 +41,7 @@ if isempty(D)
     D = struct('state', 1, 'n_ok', 0, 'n_lo', 0, 'n_hi', 0, 'therm_on', false, 'cool_on', false, 'n_run', 0, 'n_hl', 0, 'n_hs', 0, ...
                'f_ds', false, 'f_sop_dis', false, 'f_sop_chg', false, 'i_dis', 0, 'i_chg', 0, ...
                'n_zero', 0, 'i0_sum', 0, 'i0_ok', true, 'zero_bad', false, ...
-               'td_on', false, 't_f', 0, 'tdot', 0);
+               'td_on', false, 't_f', 0, 'tdot', 0, 'n_i0', 0, 'n_te', 0, 'tevt', false);
 end
 ts = P.Ts;  np_ = P.Np;
 I_nom_dis = max(P.dec_I_dis) * np_;
@@ -104,7 +105,12 @@ end
 hard = Tc_hat > P.dec_T_safe || D.n_hs >= n_hard || D.n_lo >= n_hard || D.n_hi >= n_hard || CAN_ok < 0.5;
 if hard || D.state == 4
     D.state = 4;  D.i_dis = 0;  D.i_chg = 0;
-    state = 4;  I_allow_dis = 0;  I_allow_chg = 0;  psi = 1;  cause = 128;
+    % termal olay: akım yokken yüzey ortamın üstünde ısınmayı sürdürüyor (bms_config.h DEC_TE_*)
+    if abs(I_meas) < P.dec_te_i_max, D.n_i0 = min(D.n_i0 + 1, P.dec_te_wait); else, D.n_i0 = 0; end
+    rising = CAN_ok >= 0.5 && T_valid >= 0.5 && T_meas > T_amb && D.tdot > P.dec_te_rate;
+    if rising && D.n_i0 > 0 && (T_anom > 0.5 || D.n_i0 >= P.dec_te_wait), D.n_te = D.n_te + 1; else, D.n_te = 0; end
+    if D.n_te >= P.dec_te_n, D.tevt = true; end
+    state = 4;  I_allow_dis = 0;  I_allow_chg = 0;  psi = 1;  cause = 128 + 2048 * D.tevt;
     return;
 end
 
