@@ -1,0 +1,16 @@
+metric,p50_ms,p95_ms,p99_ms,max_ms,mean_ms
+upload_rtt,102,134,224,1407,109.4
+end_to_end_oldest_row,1163,1230,1412,2830,1170.3
+end_to_end_newest_row,155,208,275,1430,159.5
+uart_jitter,4,34,35,36,10.2
+
+window_min,30.1
+batches,1624
+rows_delivered,18046
+uart_missing,0
+uart_corrupt,0
+resent_batches,0
+rejected_batches,0
+loss_pct,0.0
+setup,"STM32 ECU (TELEMETRY=2, 10 Hz) -> ST-LINK VCP 115200 -> PC gateway.py, 1 s batches -> HTTPS POST -> shared hosting PHP+SQLite"
+clock,all latencies measured on the PC clock; server one-way delay unusable (clock offset ~ -230 ms)
