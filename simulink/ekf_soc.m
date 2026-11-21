@@ -14,7 +14,7 @@ function [SOC_est, bias_est, innov, rejected, k_R] = ekf_soc(I_meas, V_meas, T_m
 %   Not (kod üretimi): her kalıcı değişken kendi isempty kontrolüyle başlatılır.
 
 %#codegen
-persistent P x Pk n_rej n_zero i0_sum
+persistent P x Pk n_rej n_zero i0_sum n_kr
 if isempty(P)
     P = bms_param_struct();
 end
@@ -32,6 +32,9 @@ if isempty(n_zero)
 end
 if isempty(i0_sum)
     i0_sum = 0;
+end
+if isempty(n_kr)
+    n_kr = 0;
 end
 
 % ---- Paket eşdeğer parametreleri (sabit, her adımda ucuz) ----
@@ -80,6 +83,10 @@ C     = [docv, -1, -1, kr * R0, -R0 * i];
 
 S     = C * Pp * C' + P.ekf_R;
 K     = Pp * C' / S;
+if n_kr < round(P.ekf_kr_freeze / P.Ts)  % açılışta k_R dondur (SOC yakınsıyor; bms_config.h EKF_N_KR_FREEZE)
+    n_kr = n_kr + 1;
+    K(5) = 0;
+end
 innov = V_meas - y_hat;
 
 % ---- İnovasyon kapısı ----

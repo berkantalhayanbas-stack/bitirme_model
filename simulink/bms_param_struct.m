@@ -89,6 +89,7 @@ P.soc0_ekf  = 0.50;     % EKF'ye bilerek yanlış başlangıç
 P.ekf_P0 = [0.1 0.01 0.01 1.0 0.01];   % son durum k_R (R0 ölçeği): ±%10 başlangıç belirsizliği
 P.ekf_Q  = [1e-10 1e-6 1e-6 1e-8 1e-8];
 P.ekf_kr_min = 0.5;  P.ekf_kr_max = 2.0;
+P.ekf_kr_freeze = 120;  % [s] açılışta k_R kazancı 0 (SOC yakınsıyor; kart buton testi 2026-11-21)
 P.ekf_p_b0 = 0.05;     % [A^2] sıfır akım kalibrasyonu sonrası kayma belirsizliği
 P.ekf_R  = 0.25^2;      % paket gerilim ölçüm varyansı [V^2]
 P.ekf_gate  = 10;       % normalize inovasyon kapısı [sigma] (EMI sıçramalarını reddeder)

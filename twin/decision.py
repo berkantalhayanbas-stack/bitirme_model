@@ -189,11 +189,13 @@ class Decision:
         else:
             self.td_on, self.tdot = False, 0.0
         psi_D = p.psi_tdot * float(np.clip((self.tdot - p.tdot_on) / (p.tdot_full - p.tdot_on), 0, 1))
-        psi_H = p.psi_health * float(np.clip((k_R - p.kr_on) / (p.kr_full - p.kr_on), 0, 1))
+        # Ψ_H açılıştan sonra t_cool_blank (120 s) yok: EKF k_R yakınsamadan / ani SOC değişiminde fırlar
+        psi_H = 0.0 if self.n_run < n_blank else             p.psi_health * float(np.clip((k_R - p.kr_on) / (p.kr_full - p.kr_on), 0, 1))
         self.psi_i = (psi_T, psi_C, psi_D, psi_H)
-        pm = max(self.psi_i)
-        self.psi_s = min(1.0, pm + p.kappa * (sum(self.psi_i) - pm))
-        self.dom = 1 + self.psi_i.index(pm) if pm > 0 else DOM_NONE
+        lim = self.psi_i[:3]                     # Ψ_H yalnız gösterge (neden 1024), toplama girmez
+        pm = max(lim)
+        self.psi_s = min(1.0, pm + p.kappa * (sum(lim) - pm))
+        self.dom = 1 + lim.index(pm) if pm > 0 else DOM_NONE
         psi = self.psi_s
         # ---------------------------------------------------- sert sınırlar (kilitlenir)
         n_hard = round(p.t_hard / p.ts)
@@ -274,7 +276,7 @@ class Decision:
             tgt_chg = min(tgt_chg, p.floor_frac * self.I_nom_chg)
 
         # ---------------------------------------------------- durum + histerezis
-        want = LIMP if limp else (DERATE if cause else NORMAL)
+        want = LIMP if limp else (DERATE if (cause & ~C_HEALTH) else NORMAL)   # 1024 bilgi
         if want > self.state:                    # kısıtlayıcı yön: anında
             self.state, self.n_ok = want, 0
         elif want < self.state:                  # gevşetici yön: bekle

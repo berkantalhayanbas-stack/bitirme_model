@@ -36,7 +36,7 @@ class PackEKF:
                  estimate_bias=True, q_diag=None, r_meas=0.25 ** 2,
                  ea_r0=6200.0, ea_r1=17500.0, ea_r2=14300.0, use_temp=True, gate=10.0,
                  estimate_r=False, p_kr=0.01, q_kr=1e-8, kr_min=0.5, kr_max=2.0,
-                 zero_n=0, zero_max=3.0, p_b0=0.05):
+                 zero_n=0, zero_max=3.0, p_b0=0.05, kr_freeze_s=120.0):
         self.Q_ah = pack_eq["Q_pack_Ah"]
         self.R0_ref = self.R0 = pack_eq["R0_pack"]
         self.ea_r0, self.ea_r1, self.ea_r2, self.use_temp = ea_r0, ea_r1, ea_r2, use_temp
@@ -69,6 +69,9 @@ class PackEKF:
         # (LIMP) verir; ofset yine telafi edilir (bilinen hata, SOC kestirimi bozulmasın).
         self.zero_n, self.zero_max, self.p_b0 = zero_n, zero_max, p_b0
         self.n_zero, self.i0_sum = 0, 0.0
+        # açılışta k_R kazancı 0 (bms_config.h EKF_N_KR_FREEZE): SOC yakınsamadan gerilim farkı
+        # direnç artışı sanılıp k_R tavana çıkıyordu (kart buton testi 2026-11-21)
+        self.kr_freeze_n, self.n_kr = round(kr_freeze_s / dt), 0
         self.Rn = r_meas
         self.a1 = np.exp(-dt / (self.R1 * self.C1))
         self.a2 = np.exp(-dt / (self.R2 * self.C2))
@@ -123,6 +126,9 @@ class PackEKF:
                      + ([-self.R0 * i] if self.nr else []))
         S = C @ P @ C + self.Rn
         K = P @ C / S
+        if self.nr and self.n_kr < self.kr_freeze_n:
+            self.n_kr += 1
+            K[4] = 0.0
         innov = v_meas - y_hat
         # Normalize inovasyon kapısı: fiziksel olarak imkânsız sıçramayı (EMI) reddet
         self.rejected = (self.gate is not None and abs(innov) > self.gate * np.sqrt(S)

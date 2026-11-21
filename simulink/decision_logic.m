@@ -83,9 +83,10 @@ else
 end
 psi_D = P.dec_psi_tdot * min(max((D.tdot - P.dec_tdot_on) / (P.dec_tdot_full - P.dec_tdot_on), 0), 1);
 psi_H = P.dec_psi_health * min(max((k_R - P.dec_kr_on) / (P.dec_kr_full - P.dec_kr_on), 0), 1);
+if D.n_run < n_blank, psi_H = 0; end   % açılıştan sonra 120 s yok (EKF k_R yakınsıyor)
 psi_i = [psi_T psi_C psi_D psi_H];
-[pm, im] = max(psi_i);                  % ilk en büyük: Python index() ile aynı
-psi_s = min(1, pm + P.dec_kappa * (sum(psi_i) - pm));
+[pm, im] = max(psi_i(1:3));             % ilk en büyük: Python index() ile aynı; Ψ_H yalnız gösterge
+psi_s = min(1, pm + P.dec_kappa * (sum(psi_i(1:3)) - pm));
 dom = 0;
 if pm > 0, dom = im; end
 tdot = D.tdot;
@@ -163,7 +164,7 @@ cause = 1*(psi_T > 0 || hot_ss || T_anom > 0.5 || psi_D > 0) + 2*(psi_C > 0) + 4
 % ---------------------------------------------------- durum + histerezis
 if limp
     want = 3;
-elseif cause > 0
+elseif cause - bitand(cause, 1024) > 0   % 1024 (Ψ_H) bilgi, DERATE değil
     want = 2;
 else
     want = 1;
