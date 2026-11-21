@@ -14,9 +14,10 @@ from decision import Decision, NAMES
 HERE = os.path.dirname(os.path.abspath(__file__))
 TS = 0.1
 COLS = ["I_meas", "V_min", "V_max", "Tc_hat", "Ts_hat", "Ru_hat", "SOC_est", "bias_est",
-        "T_valid", "I_valid", "CAN_ok", "T_meas", "T_amb"]
+        "T_valid", "I_valid", "CAN_ok", "T_meas", "T_amb", "T_anom"]
 BASE = dict(I_meas=20.0, V_min=3.65, V_max=3.70, Tc_hat=30.0, Ts_hat=29.0, Ru_hat=9.0,
-            SOC_est=0.6, bias_est=0.5, T_valid=1, I_valid=1, CAN_ok=1, T_meas=29.0, T_amb=25.0)
+            SOC_est=0.6, bias_est=0.5, T_valid=1, I_valid=1, CAN_ok=1, T_meas=29.0, T_amb=25.0,
+            T_anom=0)
 rows, results = [], []
 
 
@@ -177,6 +178,15 @@ ok = (all((r[0][:, 1:3] == 0).all() for r in res.values()) and (o2[:, 0] == 1).a
 check(15, "start-up zero-current check", ok,
       f"I_allow 0 A for {N_ZERO * TS:.1f} s; offset 2 A -> {NAMES[int(o2[-1, 0])]}, "
       f"4 A -> {NAMES[int(res[4.0][1][-1, 0])]}, -4 A -> {NAMES[int(res[-4.0][1][-1, 0])]} (cause 32)")
+
+# U16 termal anomali (thermal_anomaly.py bayrağı): gelir gelmez LIMP-HOME, neden 256 + 1 (0x201'de
+# cause 8 bit: sıcaklık biti de kurulur); bayrak kilitli olduğu için durum kalır
+an = np.r_[np.zeros(50), np.ones(150)]
+o = run(16, seq(200, T_anom=an))
+k_on = int(np.argmax(o[:, 0] == 3))
+ok = (o[:50, 0] == 1).all() and k_on == 50 and (o[50:, 0] == 3).all() and (o[50:, 4].astype(int) & 257 == 257).all()
+check(16, "thermal anomaly flag", ok,
+      f"LIMP-HOME {(k_on - 50) * TS:.1f} s after the flag, cause {int(o[-1, 4])}, I_allow {o[-1, 1]:.1f} A")
 
 V = pd.DataFrame(rows)
 V.to_csv(os.path.join(HERE, "..", "simulink", "decision_vectors.csv"), index=False)

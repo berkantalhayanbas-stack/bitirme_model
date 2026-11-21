@@ -19,7 +19,7 @@ out = zeros(n, 5);
 for k = 1:n
     if V.reset(k), clear decision_logic; end
     [s, a, b, p, c] = decision_logic(V.I_meas(k), V.V_min(k), V.V_max(k), V.Tc_hat(k), V.Ts_hat(k), ...
-        V.Ru_hat(k), V.SOC_est(k), V.bias_est(k), V.T_valid(k), V.I_valid(k), V.CAN_ok(k), V.T_meas(k), V.T_amb(k));
+        V.Ru_hat(k), V.SOC_est(k), V.bias_est(k), V.T_valid(k), V.I_valid(k), V.CAN_ok(k), V.T_meas(k), V.T_amb(k), V.T_anom(k));
     out(k, :) = [s a b p c];
 end
 clear decision_logic

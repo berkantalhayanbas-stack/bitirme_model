@@ -52,6 +52,18 @@ P.th_Q     = [1e-4 1e-4 1e-9];        % g rastgele yürüyüşü: yavaş değiş
 P.th_R     = 0.3^2 + 0.1^2/12;        % NTC gürültüsü + CAN kuantalaması [°C^2]
 P.th_g_min = 0.2 / ru_nom;            % fiziksel alt sınır (g > 0)
 
+% ---- Termal anomali dedektörü (açıklanamayan ısı; thermal_anomaly_step.m, C: bms_config.h TA_*) ----
+P.ta_win     = 1200;     % 120 s kaydırmalı pencere [örnek]
+P.ta_age_min = 100;      % zarf en az 10 s yaşlı [örnek]
+P.ta_r_th    = 1.5;      % [°C] süzülmüş ölçüm - adyabatik zarf
+P.ta_n       = 10;       % 1 s
+P.ta_alpha   = 0.1;      % ölçüm süzgeci (~1 s)
+P.ta_q_k     = 1.5;      % bilinen ısı payı
+P.ta_q_off   = 0.2;      % [W/hücre]
+P.ta_tc0     = 1.0;      % [°C] zarf başlangıç payları
+P.ta_ts0     = 0.5;
+P.ta_g_max   = 4 / ru_nom;   % ortam yüzeyden sıcaksa en güçlü ısıtma
+
 % ---- OCV-SOC tablosu: Kirkaldy vd. (2024) LG M50T GITT dinlenme sonu gerilimleri (BoL, 25 °C; veri/ocv_gitt.py, hücre A-D, E-H'de doğrulandı) ----
 P.soc_tab = [0 0.02 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 ...
              0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 0.98 1.00];

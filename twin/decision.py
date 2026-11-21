@@ -38,6 +38,7 @@ NAMES = {1: "NORMAL", 2: "DERATE", 3: "LIMP-HOME", 4: "SAFE-STOP"}
 
 # neden bitleri (fault/cause code)
 C_THERM, C_COOL, C_SOP_DIS, C_SOP_CHG, C_DS_T, C_SENSOR, C_EMPTY, C_HARD = 1, 2, 4, 8, 16, 32, 64, 128
+C_ANOM = 256    # termal anomali (thermal_anomaly.py); 0x201'de cause 8 bit: C_THERM de kurulur
 # C_DS_T: veri sayfasının sıcaklığa bağlı akım sınırı nominalin altında (soğuk veya çok sıcak hücre)
 
 
@@ -122,7 +123,7 @@ class Decision:
         return flag
 
     def step(self, I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est,
-             T_valid=1, I_valid=1, CAN_ok=1, T_meas=None, T_amb=None):
+             T_valid=1, I_valid=1, CAN_ok=1, T_meas=None, T_amb=None, T_anom=0):
         p = self.p
         cause = 0
         # ---------------------------------------------------- sert sınırlar (kilitlenir)
@@ -203,7 +204,8 @@ class Decision:
         if SOC_est < p.soc_empty: cause |= C_EMPTY
         hot_ss = self.n_hl >= n_hard
         if hot_ss: cause |= C_THERM
-        limp = sensor_bad or Tc_hat > p.T_limp or hot_ss or SOC_est < p.soc_empty
+        if T_anom: cause |= C_ANOM | C_THERM
+        limp = sensor_bad or Tc_hat > p.T_limp or hot_ss or SOC_est < p.soc_empty or bool(T_anom)
         if limp:
             # taban akım: Ψ kısıtlamasının yerine geçer ama gerilim payını (SOP) ve
             # veri sayfası sınırını asla aşmaz (boş batarya tabandan önce gelir)

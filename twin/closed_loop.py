@@ -14,6 +14,7 @@ import pandas as pd
 from battery_model import PackTwin, CellParams, PackConfig
 from ekf import PackEKF
 from thermal_observer import ThermalEKF
+from thermal_anomaly import ThermalAnomaly
 from sensor_faults import SensorDiag
 from decision import Decision, DecisionParams
 from can_monitor import CanRx
@@ -50,6 +51,7 @@ def run(I_dem, T_amb=25.0, ru_factor=1.0, soc0=0.8, weak=False, use_decision=Tru
     ekf = PackEKF(PEQ, COEF, 19, DT, soc0=0.5, estimate_r=True,
                   zero_n=round(1.0 / DT) if use_decision and zero_check else 0)   # A9: kontaktör açıkken ofset
     th = None
+    ta = ThermalAnomaly(c0, 19, 12, COEF, DT)
     diag = SensorDiag()
     dec = Decision()
     p = dec.p
@@ -60,7 +62,7 @@ def run(I_dem, T_amb=25.0, ru_factor=1.0, soc0=0.8, weak=False, use_decision=Tru
     n = len(I_dem)
     canrx = CanRx(DT, **(can or {}))
     log = {k: np.zeros(n) for k in ("I", "soc", "soc_w", "tc", "ts", "vmin", "vmax", "soc_est",
-                                    "tc_hat", "ru_hat", "state", "i_dis", "i_chg", "psi", "cause",
+                                    "tc_hat", "ru_hat", "anom", "state", "i_dis", "i_chg", "psi", "cause",
                                     "can_ok", "can_fault", "im", "vm", "tm", "vmin_m", "vmax_m")}
     for k in range(n):
         I = float(np.clip(I_dem[k], -i_chg, i_dis))
@@ -94,15 +96,24 @@ def run(I_dem, T_amb=25.0, ru_factor=1.0, soc0=0.8, weak=False, use_decision=Tru
         if th is None:
             th = ThermalEKF(c0, 19, 12, COEF, DT, t0=tm)
         x, _ = ekf.step(im, vm, tm if tv else th.x[1])
+        g_prev = th.x[2]
         xt, _, _ = th.step(im, vm, x[0], tm, T_amb, t_valid=tv)
+        # termal anomali: g donar (gizli ısı soğutma arızası sanılmasın), Tc ölçüme bağlı kararlı
+        # hal sınırının altına inmez (iç kaynakta çekirdek yüzeyden sıcak); C: bms_step
+        anom = ta.step(im, vm, x[0], tm, T_amb, xt[0], t_valid=tv)
+        if anom:
+            th.x[2] = g_prev
+            if tv:
+                th.x[0] = max(th.x[0], tm + dec.p.k_ss * (tm - T_amb))
+            xt = th.x.copy()
         if use_decision:
             st, i_dis, i_chg, psi, cause = dec.step(im, vmin_m, vmax_m, xt[0], xt[1], 1 / xt[2],
-                                                    x[0], x[3], tv, iv, can_ok, tm, T_amb)
+                                                    x[0], x[3], tv, iv, can_ok, tm, T_amb, anom)
         else:
             st, psi, cause = 1, 0.0, 0
         for key, val in (("I", I), ("soc", a["soc"]), ("tc", a["t_core"]), ("ts", a["t_surf"]),
                          ("vmin", vmin), ("vmax", vmax), ("soc_est", x[0]), ("tc_hat", xt[0]),
-                         ("ru_hat", 1 / xt[2]), ("state", st), ("i_dis", i_dis), ("i_chg", i_chg),
+                         ("ru_hat", 1 / xt[2]), ("anom", anom), ("state", st), ("i_dis", i_dis), ("i_chg", i_chg),
                          ("psi", psi), ("cause", cause), ("can_ok", can_ok), ("can_fault", can_fault),
                          ("im", im), ("vm", vm), ("tm", tm), ("vmin_m", vmin_m), ("vmax_m", vmax_m)):
             log[key][k] = val

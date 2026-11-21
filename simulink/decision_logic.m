@@ -1,9 +1,11 @@
-function [state, I_allow_dis, I_allow_chg, psi, cause] = decision_logic(I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est, T_valid, I_valid, CAN_ok, T_meas, T_amb)
+function [state, I_allow_dis, I_allow_chg, psi, cause] = decision_logic(I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est, T_valid, I_valid, CAN_ok, T_meas, T_amb, T_anom)
 %DECISION_LOGIC  Güvenli karar mekanizması (Hedef 4): 4 durumlu makine + izin verilen akım.
 %   Durumlar: 1 NORMAL, 2 DERATE, 3 LIMP-HOME, 4 SAFE-STOP (kilitlenir; çıkış: clear decision_logic)
 %   Çıkışlar: I_allow_dis / I_allow_chg (pozitif büyüklük, A), psi = 1 - I_allow_dis/I_nom,
 %             cause = neden bitleri: 1 sıcaklık, 2 soğutma alarmı, 4 deşarj gerilim payı,
-%             8 şarj gerilim payı, 16 veri sayfası sıcaklık sınırı, 32 sensör, 64 boş, 128 sert sınır
+%             8 şarj gerilim payı, 16 veri sayfası sıcaklık sınırı, 32 sensör, 64 boş, 128 sert sınır,
+%             256 termal anomali (thermal_anomaly_step.m; 1 de kurulur: CAN 0x201'de cause 8 bit)
+%   T_anom (isteğe bağlı, varsayılan 0): açıklanamayan ısı -> LIMP-HOME
 %
 %   I_allow = rampa( min( I_veri_sayfası(T_surf) * (1 - Ψ),  I_SOP ) )
 %     Ψ = max(Ψ_sıcaklık, Ψ_soğutma): 43→55 °C doğrusal (45 °C'de başlar, 43 altında kalkar);
@@ -21,6 +23,7 @@ function [state, I_allow_dis, I_allow_chg, psi, cause] = decision_logic(I_meas, 
 %   Python referansı: twin/decision.py (birebir aynı mantık; test_decision.m doğrular)
 
 %#codegen
+if nargin < 14, T_anom = 0; end
 persistent P D
 if isempty(P)
     P = bms_param_struct();
@@ -115,14 +118,14 @@ tgt_chg = max(0, min(i_ds_chg * (1 - psi_s), sop_chg));
 sensor_bad = T_valid < 0.5 || I_valid < 0.5 || abs(bias_est) > P.dec_bias_max || D.zero_bad;
 empty = SOC_est < P.dec_soc_empty;
 hot_ss = D.n_hl >= n_hard;
-limp = sensor_bad || Tc_hat > P.dec_T_limp || hot_ss || empty;
+limp = sensor_bad || Tc_hat > P.dec_T_limp || hot_ss || empty || T_anom > 0.5;
 if limp
     tgt_dis = min([P.dec_floor * I_nom_dis, i_ds_dis, max(sop_dis, 0)]);
     tgt_chg = min(tgt_chg, P.dec_floor * I_nom_chg);
 end
 
-cause = 1*(psi_T > 0 || hot_ss) + 2*(psi_C > 0) + 4*D.f_sop_dis + 8*D.f_sop_chg + 16*D.f_ds ...
-      + 32*sensor_bad + 64*empty;
+cause = 1*(psi_T > 0 || hot_ss || T_anom > 0.5) + 2*(psi_C > 0) + 4*D.f_sop_dis + 8*D.f_sop_chg + 16*D.f_ds ...
+      + 32*sensor_bad + 64*empty + 256*(T_anom > 0.5);
 
 % ---------------------------------------------------- durum + histerezis
 if limp
