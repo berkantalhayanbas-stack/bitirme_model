@@ -53,24 +53,27 @@ One line per point:
 - 5.5 Hidden heat: the observer cannot see unmodelled heat (A2 finding) → measurement-anchored bound T_ss + thermal anomaly detector (adiabatic envelope). Detection median 8.0 s / max 11.7 s; internal 5 W in 74 s; 0 false alarms in 48 runs; core-estimate error after the fault −52 → −5 °C. ✅ `thermal_anomaly.png`
   Negative result worth a paragraph: CUSUM on the thermal innovation was rejected (misses internal heat, false alarm after warm restart). ✍️
 - 5.6 Sensor diagnostics (range, frozen value, filtered rate). ✅ `sensor_fault_open_ntc.png`, `prefilter_*.png`
-- 5.7 ML SOH estimate (decision tree, Kirkaldy data). Leave-one-cell-out RMSE: tree (Usage + R) 2.57 %, gradient boosting 1.93 %, physics model 3.03 %. The tree was chosen for MCU size.
+- 5.7 State of health: cause and symptom (decided 2026-11-22). SOH does not move within a drive; it falls as stress accumulates over months.
+  - Cause (prognosis): calibrated ageing model, Kirkaldy M50T (Millner stress structure, validated on Expt 4 WLTP). Daily repetition → end of life (20 % fade): normal 25 °C ~6 yr, hot day 40 °C ~1.7 yr, cooling fault ~2.6 yr, deep discharge ~4.5 yr. Link to Ψ: Ψ limits the current now, the ageing model prices that stress in lifetime. ✅ `aging_stress_map.png`, `aging_projected_fade.png`, `aging_validation.png`
+  - Symptom (measurement): k_R = 1 + 1.31 (1 − SOH) from 40 cells → SOH_R = 1 − (k_R − 1)/1.31. Bench (twin SOH set 100/90/80/70, ECU sees only CAN): SOH_R 99.6/88.1/77.1/64.4 % (error −0.4/−1.9/−2.9/−5.6 pts), settled ~20–30 s after the 120 s k_R freeze, ECU NORMAL throughout. The bias is conservative (SOH underestimated) and grows with age, because the twin ages R0, R1 and R2 while the EKF k_R scales only R0, so the RC-branch growth is absorbed into R0. ✅ `soh_bench.png`, `soh_bench_summary.csv`, `age_resistance.png`. The web panel shows SOH_R (Battery health ~ %).
+  - ML SOH estimate (decision tree, Kirkaldy data), offline estimator: Leave-one-cell-out RMSE: tree (Usage + R) 2.57 %, gradient boosting 1.93 %, physics model 3.03 %. The tree was chosen for MCU size.
   Aged-pack demo: SOC RMSE 1.44 % (new-cell BMS) → 0.48 % (ML-updated) vs oracle 0.29 %.
   ✅ `ml_model_comparison.png`, `ml_depth_sweep.png`, `ml_cv_leakage.png`, `ml_aged_pack_soc.png`
-  ⚠️ Limitation: online rint never fires on the smooth twin cycle → SOH output stays ~100 % on the bench; say so.
+  - Limitation: the 0x202 SOH byte (ML tree with usage inputs efc/days = 0 and rint inactive on smooth cycles) stays ~100 % on the bench; there is no capacity estimation and no non-volatile SOH storage. The meaningful on-line SOH is SOH_R from k_R.
 
 ## 6 Decision logic and the multi-criteria stress index
 - 6.1 States and graded response; datasheet limits; SOP with temperature-dependent R and k_R. ✅ `decision_closed_loop.png`, `limiter_test.png`
 - 6.2 Stress index Ψ = max + κ(sum − max), κ = 0.25; criteria Ψ_T (45→55 °C), Ψ_C (cooling alarm, 0.3), Ψ_Tdot (3→10 °C/min, 0.5); Ψ_H display only.
   Explain the dropped criteria with data: σ_SOC max 0.75 %, I²t max 49 %, nominal ΔV 18–46 mV, k_R jump at boot.
   ✅ `stress_index_drive.png`
-- 6.3 Passive balancing (10/5 mV hysteresis, 60 s, off while driving): ΔV 21.7 → 8.9 mV with ×500 acceleration (state the acceleration). ✍️ (⚠️ no figure yet; the twin_emu_run CSV exists in build/, optional)
+- 6.3 Passive balancing (10/5 mV hysteresis, 60 s, off while driving): ΔV 21.7 → 8.9 mV with ×500 acceleration (state the acceleration). ✍️ TODO: balancing figure (decided 2026-11-22).
 - 6.4 Thermal event after shutdown (cause 2048, UN GTR 20): bench 1.0 s after SAFE; 90 s soak guard; 1 W/cell not detected. ✍️
 
 ## 7 Verification
 - 7.1 Verification chain MIL → SIL → PIL → CAN replay → HIL (diagram optional). ✍️
 - 7.2 SIL/PIL: C = Python = MATLAB; PIL 3/3 PASS; bms_step max 92 µs on 170 MHz. ✍️
 - 7.3 On-target Monte Carlo: 1000 runs × 600 s, 623× real time, 16 min; 1000/1000 PASS; board vs PC identical verdicts 1000/1000. Fault reactions: NTC open 0 s, offset 0.9 s, external heat SAFE with core 58–59 °C; 0 false alarms in fault-free runs. ✅ `mc_overview.png`, `mc_summary.txt`
-- 7.4 HIL bench: twin on Uno, ECU on STM32, scripted scenarios (demo_run.py), button tests with measured reaction times (NORMAL 2–6 s, DERATE 0.1 s, LIMP 0.0 s, STOP 0.5 s, watchdog 1.1 s, overheating LIMP 6.1 s / SAFE 65.5 s, cooling fault 105.8 s). ✍️ (⚠️ `build/demo_*.png` exist; restyle one into results/ if you want a figure)
+- 7.4 HIL bench: twin on Uno, ECU on STM32, scripted scenarios (demo_run.py), button tests with measured reaction times (NORMAL 2–6 s, DERATE 0.1 s, LIMP 0.0 s, STOP 0.5 s, watchdog 1.1 s, overheating LIMP 6.1 s / SAFE 65.5 s, cooling fault 105.8 s). ✍️ TODO at the very end: redraw the bench scenario plots in thesis style into results/ (decided 2026-11-22).
 - 7.5 **Design flaws found only by HIL** (key argument): cooling-alarm chatter (fixed with hysteresis 18/15), warm-restart false cooling alarm (21/32 → 0 with 120 s blanking), thermal lag (SAFE at true core 66.4 → 60.0 °C with T_ss). One short table. ✍️
 - 7.6 Safety mechanisms on the bench: CAN cable pulled → SAFE < 1 s (ACK-error exception, no bus-off), watchdog, flash CRC. ✍️
 
