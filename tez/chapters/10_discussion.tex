@@ -1,0 +1,22 @@
+\chapter{Discussion}\label{ch:discussion}
+
+\section{Comparison with related work}
+The laboratory HIL rigs in the literature use real-time simulators, cell-voltage emulators, cyclers and climate chambers \citep{barreras2016,bui2019,jacob2025}, and they test commercial BMSs as black boxes. The bench used here costs a small fraction of that, but it tests a white-box controller whose internal estimates can be logged and compared with the twin's true values. This made it possible to measure detection times, and to see \emph{why} a reaction was late, as in the case of the core-temperature lag under external heat. The price is fidelity on the electrical side: the twin sends numbers over CAN, not analog voltages, which is sufficient for the control strategy \citep{haupt2013} but not for testing a measurement front end.
+
+Compared with the monitoring-type BMS prototypes in the literature, the controller adds estimation, a graded decision with causes, end-to-end protected communication and functional-safety mechanisms, and its behaviour is backed by 1000 randomised runs on the target.
+
+\section{Model fidelity versus test value}
+Several twin parameters are assumed (\cref{tab:param}). This does not reduce the value of the flaws the bench found: all three were structural (a missing hysteresis, an unhandled restart, a blind spot of the observer) and would have appeared with any reasonable parameter set. The sensitivity analysis also showed that the safety criteria hold under large parameter errors. The model matters most for the accuracy figures, which is why the parameters that affect SOC (OCV, $R_0$, RC) were fitted to measured data.
+
+\section{Limitations}
+\begin{itemize}
+  \item \textbf{Communication-based HIL.} No analog cell voltages, no front-end chip, no sense-line faults.
+  \item \textbf{100\,ms loop.} Millisecond events such as short circuits cannot be emulated.
+  \item \textbf{One temperature sensor} for the pack and a single average thermal model; hot spots between groups are not modelled.
+  \item \textbf{No capacity estimation.} On aged packs the SOC error reaches 4.9\,\% (Monte Carlo, SOH 70--84\,\%).
+  \item \textbf{SOH display.} The online resistance estimator needs current steps the bench cycle does not produce, and usage counters are not stored across restarts; the bench SOH stays near 100\,\%.
+  \item \textbf{Thermal limits.} Slow internal heat below the known-heat margin and a 1\,W per cell thermal event after shutdown are not detected; with a frozen cooling estimate the core estimate can overshoot the true value (errs on the safe side).
+  \item \textbf{Hardware safety.} No contactor pre-charge, weld detection, insulation monitoring or redundant voltage path.
+  \item \textbf{Security.} The CRC detects errors, not attacks; there is no secure on-board communication or secure boot.
+  \item \textbf{Process.} The safety analysis is FMEA-style, not a full ISO 26262 process.
+\end{itemize}

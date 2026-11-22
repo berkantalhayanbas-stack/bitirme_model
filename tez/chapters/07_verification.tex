@@ -1,0 +1,69 @@
+\chapter{Verification}\label{ch:verification}
+
+\section{Verification chain}\label{sec:chain}
+The same algorithm was tested at five levels:
+\begin{enumerate}
+  \item \textbf{Model-in-the-loop (MIL)}: Python reference and a Simulink model with 20 unit tests of the decision logic and eight closed-loop acceptance scenarios (normal drive, overheating, deep discharge, full charge, cold charge, sensor fault, cold drive, no false safe stop).
+  \item \textbf{Software-in-the-loop (SIL)}: the C code compiled for the PC and run on recorded inputs. C, Python and MATLAB agree to within 0.0013 SOC percentage points and identical states.
+  \item \textbf{Processor-in-the-loop (PIL)}: the same inputs sent to the STM32 over UART; the board output matches the PC reference; one step takes at most 92\,\textmu s.
+  \item \textbf{CAN replay}: recorded inputs played over the real CAN bus.
+  \item \textbf{Hardware-in-the-loop (HIL)}: the full bench with the twin, scripted scenarios and fault buttons.
+\end{enumerate}
+In addition, a randomised Monte Carlo test runs twin and controller together on the STM32.
+
+\section{On-target Monte Carlo}\label{sec:mc}
+\paragraph{Method.} The twin and \texttt{bms\_step} were compiled into one firmware and run on the STM32 without waiting for real time. Each of 1000 runs simulates 600\,s and draws at random the ambient temperature (0--40\,°C), initial SOC (35--95\,\%), drive severity ($\times$0.6--1.6), cell capacity and resistance spread ($\pm2$\,\%, $\pm5$\,\%), a current-sensor offset ($\pm2.5$\,A) and one fault at a random time: none, cooling failure, external heat, open temperature sensor, large current offset (4--12\,A), or an aged pack (SOH 70--84\,\%). A seeded xorshift generator gives every run the same random numbers on the board and on a PC build of the same C code. Each fault has a verdict: for example, an external heat event must end in LIMP before the true core exceeds 57\,°C and in SAFE before 62\,°C, and a fault-free run must raise no alarm.
+
+\paragraph{Results.} All 1000 runs passed (\cref{tab:mc}). Board and PC gave identical verdicts, faults and final states in 1000 of 1000 runs; all printed fields were identical in 992, and the remaining 8 differ only in the last digit of the SOC error. The board ran 605 times faster than real time (165\,\textmu s per step including the twin; 1000 runs in 16.5\,min).
+
+\begin{table}[htbp]\centering\small
+\caption{On-target Monte Carlo, 1000 runs (final code).}\label{tab:mc}
+\begin{tabular}{@{}lrrrl@{}}\toprule
+Fault & Runs & Pass & Detected & Reaction (median / max) \\\midrule
+None & 178 & 178 & -- & no false alarm \\
+Cooling failure & 199 & 199 & 48\,\% & 138\,s / 451\,s \\
+External heat & 151 & 151 & 100\,\% & 8.0\,s / 11.7\,s \\
+Open temperature sensor & 151 & 151 & 100\,\% & same sample \\
+Current offset 4--12\,A & 202 & 202 & 100\,\% & 0.9\,s \\
+Aged pack & 119 & 119 & 100\,\% & 120\,s (after start-up blanking) \\\bottomrule
+\end{tabular}
+\end{table}
+
+In the external-heat runs the true core was at 58.0--59.2\,°C at the safe stop (limit 60\,°C). The SOC error after 120\,s stayed below 2\,\% in all fault-free runs; in aged packs it reached 4.9\,\% because the capacity loss is not estimated (\cref{ch:discussion}).
+
+\fig{mc_overview}{0.95}{On-target Monte Carlo: reaction times, core temperature at LIMP/SAFE and SOC error per fault type.}{fig:mc}
+
+\section{HIL bench}
+On the bench the twin runs on the Uno and the controller on the STM32. Scenarios are driven either by five buttons on the twin or by a scenario runner on the PC that sends commands to the twin, waits for conditions on the ECU state and records the run. Each button injects a \emph{cause} (for example a broken sensor); the ECU is never told the scenario and has to reach the expected state on its own. \Cref{tab:bench} lists the measured reaction times.
+
+\begin{table}[htbp]\centering\small
+\caption{Bench button tests (time from injection to ECU state change).}\label{tab:bench}
+\begin{tabular}{@{}llr@{}}\toprule
+Scenario (cause) & Expected state & Measured \\\midrule
+Full-battery fast charge & DERATE (charge headroom) & 0.0--0.1\,s \\
+Temperature sensor pulled & LIMP-HOME & 0.0\,s \\
+Measurement line cut & SAFE-STOP & 0.5\,s \\
+Software hang (watchdog) & SAFE-STOP after reset & 1.1\,s \\
+External overheating & LIMP / SAFE & 5.0\,s / $\approx$33\,s \\
+Cooling failure ($R_u \times 4$) & DERATE (cooling alarm) & $\approx$2--3\,min \\
+Service (restart) & NORMAL & 3.0--4.7\,s \\\bottomrule
+\end{tabular}
+\end{table}
+\todo{redraw the bench scenario plots in thesis style; overheating time depends on the severity potentiometer}
+
+Physical safety mechanisms were tested directly: pulling the CAN cable leads to SAFE-STOP within 1\,s (the ECU sees no acknowledgement, stays error-passive and does not go bus-off, as ISO 11898 allows for a lone node); a commanded infinite loop is reset by the independent watchdog within about 100\,ms and the ECU boots into a latched SAFE-STOP; an image without a valid flash checksum never leaves SAFE-STOP.
+
+\section{Design flaws found only by HIL}\label{sec:flaws}
+The strongest argument for the bench is that it found flaws the earlier stages had not, because those stages never produced the conditions (\cref{tab:flaws}).
+
+\begin{table}[htbp]\centering\small
+\caption{Design flaws found on the HIL bench.}\label{tab:flaws}
+\begin{tabularx}{\linewidth}{@{}lXX@{}}\toprule
+Flaw & Why earlier stages missed it & Fix and effect \\\midrule
+Cooling alarm chattered & Offline runs had no slowly converging estimate crossing the threshold & Hysteresis 18/15\,K/W; alarm stays on \\
+False cooling alarm after a warm restart & No offline test restarted the controller on a warm, loaded pack & 120\,s blanking: 21/32 false alarms $\to$ 0, all real faults still found \\
+Core estimate lagged under external heat & Offline heat was always the model's own heat & Anchored bound + anomaly detector: SAFE at true core 66.4 $\to$ 60.0\,°C \\\bottomrule
+\end{tabularx}
+\end{table}
+
+Later bench sessions found further issues of the same kind: stale CAN frames after a restart corrupted the start-up offset check, the resistance state jumped after a restart under charge, and the twin's vehicle model crept at 0.2\,km/h after braking. Each was fixed and re-tested.

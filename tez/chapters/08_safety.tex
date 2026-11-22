@@ -1,0 +1,25 @@
+\chapter{Safety analysis}\label{ch:safety}
+
+\Cref{tab:fmea} summarises the hazards the controller addresses, how each is detected and what was measured. It is an FMEA-style overview of the safety mechanisms, not a full ISO 26262 process \citep{iso26262}: there is no hazard analysis and risk assessment, no ASIL assignment and no requirement traceability. The full table with thresholds, evidence and limits is in \texttt{results/safety\_analysis.md}.
+
+\begin{table}[htbp]\centering\scriptsize
+\caption{Hazards, mechanisms and measured reactions.}\label{tab:fmea}
+\begin{tabularx}{\linewidth}{@{}lXXX@{}}\toprule
+ID & Hazard & Mechanism and reaction & Measured \\\midrule
+H1 & Cell overtemperature & $\Psi_T$ derating, LIMP at 55\,°C, SAFE at 60\,°C (estimate or anchored bound) & bench: SAFE at true core 60.0--60.5\,°C (66.4 before the bound) \\
+H2 & Unexplained heating & anomaly detector, latched LIMP & MC median 8.0\,s, max 11.7\,s; internal 5\,W/cell 74\,s \\
+H3 & Thermal event after shutdown & latched warning in SAFE-STOP & bench 1.0\,s after SAFE; 2--5\,W/cell $\approx$91\,s \\
+H4 & Loss of cooling & $R_u$ estimate, alarm, DERATE to 70\,\% & bench 106--125\,s after boot; MC 48\,\% in 600\,s (median 138\,s) \\
+H5 & Wrong temperature reading & range, frozen, rate checks; LIMP & same sample \\
+H6 & Current-sensor offset & start-up zero-current check; LIMP, offset compensated & 0.9\,s for $\ge4$\,A \\
+H7 & Over-discharge & discharge headroom limit; SAFE below 2.50\,V & $V_\mathrm{min} \ge 2.8$\,V in 25/25 sensitivity cases \\
+H8 & Overcharge & charge headroom limit; SAFE above 4.25\,V & $V_\mathrm{max} \le 4.20$\,V in 25/25; bench DERATE 0.1\,s \\
+H9 & Decisions on stale data & 500\,ms measurement timeout; SAFE & cable pulled: SAFE $<1$\,s \\
+H10 & Corrupted or repeated frames & CRC-8 + counter; frame rejected, SAFE after timeout & frozen counter: SAFE 507\,ms after last valid frame \\
+H11 & Controller hangs & independent watchdog (100\,ms); latched SAFE after reset & bench 1.1\,s from button \\
+H12 & Corrupt firmware & flash CRC at boot; SAFE & every image without reference stays in SAFE \\
+H13 & Vehicle draws more than allowed & contactor opened in SAFE; current limit relies on the inverter & not tested (no actuator-fault injection) \\\bottomrule
+\end{tabularx}
+\end{table}
+
+The test scenarios map onto the BMS HIL test taxonomy of Barreras et al.\ \citep{barreras2016}: overtemperature during discharge (H1, H2), low-temperature charging (datasheet table), overvoltage during charge (H8), sensor malfunction (H5, H6), open interface (H9), corrupted communication (H10) and system-component malfunction (H11, H12). Not covered are short circuits (the 100\,ms loop cannot emulate millisecond events), line-resistance faults and actuator malfunction (H13).

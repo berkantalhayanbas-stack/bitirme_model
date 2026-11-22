@@ -1,0 +1,87 @@
+\chapter{System design}\label{ch:design}
+
+\section{Architecture}
+\Cref{fig:block} shows the test bench. The controller (ECU) and the simulated pack (plant) run on two separate microcontrollers and share only a CAN bus. This separation is the core of HIL testing: the controller cannot read the model's internal variables and sees only what a real BMS would see, namely CAN frames from a cell-monitoring unit.
+
+\fig{system_block_diagram}{0.95}{Test bench: STM32 ECU and Arduino-based pack twin connected by CAN. \todo{redraw with English labels}}{fig:block}
+
+Every 100\,ms the twin advances its pack model, adds sensor noise and sends the measurements. The ECU runs one step of its algorithm, \texttt{bms\_step}, and answers with the allowed current, its state and a balancing mask. The twin clips its current demand to the allowed current before the next step, which closes the loop.
+
+\Cref{tab:hw} lists the parts and why each one is there.
+
+\begin{table}[htbp]\centering\small
+\caption{Bench components and their role.}\label{tab:hw}
+\begin{tabularx}{\linewidth}{@{}lX@{}}\toprule
+Part & Role \\\midrule
+NUCLEO-G431RB (STM32G431, Cortex-M4F, 170\,MHz) & The ECU \citep{rm0440,ds12589}. Single-precision FPU for the filters, on-chip FDCAN, CORDIC unit, independent watchdog and CRC unit. \\
+Arduino Uno + MCP2515 & The plant: pack twin and vehicle model. The MCP2515 is the CAN controller the Uno lacks. \\
+2 $\times$ TJA1050 & CAN transceivers (differential bus, 500\,kbit/s) \citep{tja1050}. \\
+LM35 & Real ambient temperature for the twin; pulling it out is a real sensor fault. \\
+5 push buttons, potentiometer & Reproducible fault scenarios on the bench; the potentiometer sets fault severity. \\
+16$\times$2 I$^2$C LCD & Stand-alone display of mode, SOC, allowed current and ECU state. \\
+LEDs via ULN2003 & ``Headlights'': brightness shows the allowed current (actuator side). \\
+Relay on PB5 & Stands in for the main contactor; held closed only while the ECU actively drives it. \\
+ST-LINK (on the Nucleo) & Flashing, reset by SWD and a virtual serial port for telemetry. \\\bottomrule
+\end{tabularx}
+\end{table}
+
+The relay is the last layer of protection. Current limiting only works if the inverter obeys the allowed-current message, so the safe state must physically disconnect the pack. The relay is wired fail-safe: a hang, reset or power loss releases it.
+
+\section{Pack and cell parameters}
+The pack has 19 series groups of 12 parallel cells. With a cell capacity of 4.85\,Ah the pack holds 58.2\,Ah, about 4.0\,kWh at the nominal 3.63\,V per cell \citep{lgm50t}. The datasheet limits a cell to 1.5\,C in discharge and 0.7\,C in charge, which gives 87.3\,A and 40.7\,A for the pack. \Cref{tab:param} lists where each model parameter comes from.
+
+\begin{table}[htbp]\centering\small
+\caption{Cell model parameters and their source.}\label{tab:param}
+\begin{tabular}{@{}llll@{}}\toprule
+Parameter & Value & Source & Status \\\midrule
+Capacity $Q$ & 4.85\,Ah & datasheet, \citet{kirkaldy2024} (4.857\,Ah) & measured \\
+OCV$(z)$ & 23-point table & GITT rests, \citet{kirkaldy2024} (\cref{sec:ocv}) & measured \\
+$R_0$ & 26.4\,m$\Omega$ & 0.1\,s pulse resistance, \citet{kirkaldy2024} & measured \\
+$R_1$, $C_1$ & 9.3\,m$\Omega$, 1075\,F & fit to 10\,s resistance & partly measured \\
+$R_2$, $C_2$ & 12\,m$\Omega$, 15\,000\,F & & assumed \\
+$E_a$ ($R_0$/$R_1$/$R_2$) & 6.2/17.5/14.3\,kJ/mol & raw cycling data (\cref{sec:ea}) & measured \\
+$C_c$, $C_s$ & 64, 5\,J/K & mass $\times$ specific heat & estimated \\
+$R_c$ & 1.8\,K/W & \citet{lin2014} structure & literature \\
+$R_u$ & 9\,K/W & & assumed \\
+Ageing $k_R(\mathrm{SOH})$ & $1 + 1.31\,(1-\mathrm{SOH})$ & 40 cells (\cref{sec:ageing}) & measured \\\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Digital twin}
+The twin is a C port of a Python reference model and runs at 10\,Hz on the Uno. It simulates the 19 groups separately, each with its own SOC and RC states. A fixed spread table gives each group a slightly different capacity, resistance and initial SOC (within $\pm0.5$\,\% capacity and $\pm3$\,\% resistance, which matches the spread of 40 fresh cells in the Kirkaldy data: 0.44\,\% and 2.95\,\% standard deviation \citep{kirkaldy2024,rumpf2017}). Group 7 is deliberately weak ($-5$\,\% capacity, $+15$\,\% resistance) to give the balancing and the minimum-voltage logic something to do. The thermal model is a single two-node model for the average cell.
+
+A simple vehicle model (450\,kg, rolling and air resistance, drive and regeneration efficiency) turns a speed profile into a current demand. The measurements sent to the ECU carry noise like real sensors: pack voltage $\sigma = 0.25$\,V, current with a 0.5\,A offset and $\sigma = 0.5$\,A, temperature $\sigma = 0.3$\,°C and group voltages $\sigma = 5$\,mV.
+
+The same twin source code is used in three places: on the Uno, in the on-target Monte Carlo test on the STM32 and in the PC build; the Python and Simulink versions are kept identical (\cref{sec:chain}). The twin can also age the pack with one parameter, the SOH: capacity is scaled by SOH and resistance by the measured relation of \cref{sec:ageing}.
+
+\fig{01_twin_overview}{0.9}{Twin on the reference drive: current, voltage, SOC and temperatures.}{fig:twin}
+
+\section{CAN communication}\label{sec:can}
+\Cref{tab:can} lists the messages. All run at 500\,kbit/s with a 100\,ms cycle.
+
+\begin{table}[htbp]\centering\small
+\caption{CAN messages.}\label{tab:can}
+\begin{tabular}{@{}lll@{}}\toprule
+ID & Direction & Content \\\midrule
+0x101 & twin $\to$ ECU & pack current, pack voltage, surface temperature \\
+0x102 & twin $\to$ ECU & minimum / maximum group voltage, ambient temperature \\
+0x110--0x114 & twin $\to$ ECU & 19 group voltages (4 per frame, 12 bit, 1\,mV) + balancing feedback \\
+0x201 & ECU $\to$ twin & state, allowed discharge / charge current, cause bits \\
+0x202 & ECU $\to$ twin & estimated SOC, core temperature, SOH, stress \\
+0x210 & ECU $\to$ twin & balancing mask \\
+0x301 & PC $\to$ ECU / twin & commands (protected restart, set SOC, fault injection) \\\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Signal packing.} Packing several signals into one frame has three reasons, not only bus load. First, efficiency: a classic CAN frame has about 47 bits of fixed overhead, so a 2-byte frame carries 25\,\% payload and an 8-byte frame 58\,\%; the 19 group voltages fit in five frames instead of nineteen. Second, consistency: current, voltage and temperature travel in one frame, so the estimator always pairs values from the same instant (a late frame would otherwise pair a new current with an old voltage and look like a resistance change). Third, end-to-end protection costs 1.5 bytes per frame and is paid once per frame.
+
+\paragraph{End-to-end protection.} Every frame carries a 4-bit counter and a CRC-8 (SAE J1850 polynomial \citep{sae_j1850}) that also covers the CAN identifier. The receiver rejects frames with a wrong CRC or a repeated counter, and treats 500\,ms without valid measurement frames as a lost measurement line (\cref{ch:decision}). The encoding lives in one C file shared by all nodes; a DBC database generated from it was checked against 14\,000 random frames (Appendix~\ref{app:dbc}).
+
+\paragraph{Measured bus load.} A logic analyser built from the STM32's own timer and DMA captured 246 frames of all seven identifiers; all were acknowledged with a correct CRC. Including bit stuffing, the traffic is 8.07\,kbit/s, i.e.\ 1.61\,\% of the bus.
+
+\fig{can_frame_layout}{0.9}{Signal layout of the measurement and control frames.}{fig:canlayout}
+
+\section{Software structure}
+The firmware uses no vendor HAL; peripherals are programmed through CMSIS register definitions. All algorithms are in a platform-independent module (\texttt{bms\_init}, \texttt{bms\_step}) that compiles unchanged for the STM32 and for a PC, which makes software-in-the-loop testing exact (\cref{sec:chain}). The code uses single-precision floating point only, no dynamic memory and no \texttt{printf}. One step takes at most 92\,\textmu s at 170\,MHz, under 0.1\,\% of the 100\,ms period.
+
+Two real-time lessons came from the bench. A blocking 1\,s status report over UART took about 30\,ms and let the three-frame CAN receive FIFO overflow; it was replaced by an interrupt-driven transmit ring buffer. Later, a 20\,ms busy-wait while measuring the headlight PWM caused the same overflow; the fix was a 16-frame software buffer filled during the wait.

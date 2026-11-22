@@ -1,0 +1,32 @@
+\chapter{Model identification and validation}\label{ch:models}
+
+The twin is only useful if it behaves like the real cell. This chapter fits the model to the public LG M50T data set of Kirkaldy et al.\ \citep{kirkaldy2024,kirkaldy2024data}, which contains reference performance tests (RPTs) of 40 cells over their life: capacity tests, pulse resistances and 25-pulse GITT sequences.
+
+\section{Open-circuit voltage}\label{sec:ocv}
+The first version of the model used the OCV curve of Chen et al.\ for the LG M50 \citep{chen2020}, a sister cell. The OCV was rebuilt from the M50T GITT data: after each of the 25 discharge pulses the cell rests, and the voltage at the end of the rest is close to the OCV. The table was built from cells A--D (104 points) and validated on cells E--H, which did not take part in building it, by simulating the full GITT sequence with the same two-RC model.
+
+The voltage RMSE fell from 64.7\,mV with the Chen curve to 36.7\,mV with an OCV from slow C/10 discharges and to 17.0\,mV with the GITT-based table (\cref{fig:ocv}). The Chen curve was 10--15\,mV low between 15 and 65\,\% SOC, which would have biased the SOC estimate by about 2\,\% on the flat part of the curve.
+
+\fig{ocv_dogrulama}{0.9}{OCV validation on cells E--H: simulated vs measured GITT voltage for three OCV tables.}{fig:ocv}
+
+\section{RC branches}
+The RC parameters depend on which part of the GITT curve is fitted. A fit to the pulses gives short time constants (3.1\,s and 53\,s), a fit to the rests gives long ones (60\,s and 666\,s); the model values (10\,s and 180\,s) lie in between. The three sets change the voltage RMSE by less than 2\,mV. The cell has a spread of time constants and two RC branches are a compromise; the remaining error is dominated by the OCV table and hysteresis, not by the RC choice.
+
+\section{Temperature dependence}\label{sec:ea}
+The summary RPTs are all at 25\,°C, so the activation energies were fitted to the raw cycling data of eight cells at 15, 27 and 40\,°C. At the start of every discharge the current steps from a small constant-voltage tail to 5\,A; the voltage change after 0.05\,s gives the ohmic resistance and the change after 1--30\,s the polarisation. The ohmic resistance depends only weakly on temperature ($E_a = 6.2 \pm 0.3$\,kJ/mol), while the polarisation is much more sensitive (28.3, 17.5 and 14.3\,kJ/mol at 1, 10 and 30\,s) (\cref{fig:ea}). The earlier assumption of 20\,kJ/mol on $R_0$ alone was 30\,\% too low at 40\,°C and 40\,\% too high at 5\,°C. The new values are used in the twin, in the estimator and in the power limit.
+
+\fig{ea_kirkaldy}{0.9}{Arrhenius fit of ohmic and polarisation resistance (eight cells, 15--40\,°C).}{fig:ea}
+
+\section{Ageing}\label{sec:ageing}
+The same RPTs give, for every cell and test, the capacity and the 0.1\,s resistance. Across 40 cells and 224 RPTs (one obviously faulty measurement removed), the resistance grows linearly with the capacity loss:
+\begin{equation}
+  k_R = \frac{R}{R_\mathrm{BoL}} = 1 + 1.31\,(1 - \mathrm{SOH}),
+\end{equation}
+so a cell at the usual end of life, SOH = 80\,\%, has 26\,\% more resistance (\cref{fig:age}). This relation lets the twin age the pack with a single parameter, and it translates resistance-based thresholds in the controller into SOH values (\cref{sec:stress}). The capacity-fade model used for the ageing study combines a cycle term fitted to the same data and a calendar term from Schmalstieg et al.\ \citep{schmalstieg2014,millner2010}; its calibration RMSE is 2.5\,\%. \todo{decide whether the ageing-model figures go in the main text or the appendix}
+
+\fig{age_resistance}{0.75}{Resistance growth versus capacity fade, 40 M50T cells.}{fig:age}
+
+\section{Cross-validation of the model implementations}
+The model exists in Python (reference), Simulink, and C (twin and Monte Carlo). All four were run on the same input; the Simulink and Python pack voltages agree to $3\times10^{-11}$\,mV, and the C twin matches the Python model within float32 rounding. Keeping the implementations identical is what makes the later comparison between offline and on-target results meaningful.
+
+\fig{twin_crossvalidation}{0.8}{Cross-validation of the twin implementations.}{fig:xval}

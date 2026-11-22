@@ -17,3 +17,6 @@ veri/kirkaldy_ham/
 # Python
 __pycache__/
 *.pyc
+
+# tez: Overleaf zip (make_overleaf_zip.py)
+tez/build/

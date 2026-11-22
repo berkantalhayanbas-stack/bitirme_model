@@ -1,0 +1,50 @@
+\chapter{Decision logic and the multi-criteria stress index}\label{ch:decision}
+
+\section{States and graded response}
+The decision layer turns the estimates into one of four states and two allowed currents (discharge and charge), sent to the vehicle every 100\,ms:
+\begin{description}
+  \item[NORMAL] full datasheet current.
+  \item[DERATE] reduced current because of a temperature, voltage-headroom, datasheet or stress limit.
+  \item[LIMP-HOME] current limited to 25\,\% of nominal, because the BMS can no longer trust its picture of the pack (sensor fault, current offset, thermal anomaly, core above 55\,°C, empty pack).
+  \item[SAFE-STOP] zero current and the contactor opened, latched until a service restart: core estimate or anchored bound above 60\,°C, a group voltage outside 2.50--4.25\,V for 1\,s, measurement frames lost for 500\,ms, a watchdog reset or a failed flash check.
+\end{description}
+Moving to a more restrictive state is immediate. Moving back needs 10\,s without a cause, and the allowed current then ramps up at no more than 10\,A/s, so the vehicle never sees a sudden step. Every state change carries cause bits (temperature, cooling, discharge or charge headroom, datasheet limit, sensor, empty, hard limit, thermal anomaly) that explain the decision.
+
+\section{Datasheet and voltage-headroom limits}
+The datasheet allows less current at low and high temperature, especially in charge: no charging at 0\,°C and 0.3\,C in the cold, because charging a cold cell risks lithium plating \citep{waldmann2018}. These tables are interpolated on the surface temperature.
+
+The voltage-headroom limit (state of power) keeps every group inside its voltage window. The allowed discharge current is the present current plus the current that would pull the weakest group down to 2.90\,V through its ohmic resistance:
+\begin{equation}
+  I_\mathrm{sop,dis} = I + K\,N_p\,\frac{V_\mathrm{min} - 2.90\,\mathrm{V}}{R_0(T)\,k_R},
+\end{equation}
+with $K = 0.3$ as a safety factor; charge is symmetrical with the highest group and 4.18\,V. This is closer to the simple HPPC rule than to Plett's horizon-based methods \citep{plett2004pow}, but it uses the minimum over groups, the measured temperature dependence and the estimated resistance growth.
+
+\fig{decision_closed_loop}{0.9}{Decision layer in closed loop on the test scenarios (MATLAB/Simulink).}{fig:dec}
+
+\section{Multi-criteria stress index}\label{sec:stress}
+The temperature derating used to be a single criterion. To combine several warning signs into one current reduction, a stress index $\Psi \in [0,1]$ was introduced:
+\begin{equation}
+  \Psi = \min\!\Big(1,\ \Psi_\mathrm{max} + \kappa \big(\textstyle\sum_i \Psi_i - \Psi_\mathrm{max}\big)\Big),\qquad \kappa = 0.25,
+  \qquad I_\mathrm{allow} = I_\mathrm{datasheet}\,(1 - \Psi).
+\end{equation}
+The largest criterion dominates; the others add a quarter of their value, so two moderate warnings together reduce the current more than either alone, but never more than the strongest one plus a margin. With $\kappa = 0$ the index reduces to the old maximum rule. The criterion with the largest value is reported as the \emph{dominant} cause.
+
+The criteria that limit current are:
+\begin{itemize}
+  \item $\Psi_T$, core temperature: rises linearly to 1 at 55\,°C, switched on at 45\,°C and off below 43\,°C.
+  \item $\Psi_C$, cooling alarm: 0.3 while the alarm is active.
+  \item $\Psi_{\dot T}$, temperature-rise rate: the measured surface temperature is low-pass filtered (5\,s) and differentiated (30\,s filter); from 3 to 10\,°C/min it rises to 0.5. Nominal driving reaches at most 2.3\,°C/min.
+\end{itemize}
+A fourth criterion, $\Psi_H$ for resistance growth, is shown on the dashboard but does not limit current. Its thresholds are placed by the ageing relation of \cref{sec:ageing}: it starts at $k_R = 1.2$ (SOH about 86\,\%) and is full at 1.3 (about 80\,\%, end of life). It was taken out of the current limit after the bench showed that a transient $k_R$ jump after a restart could trip it on a new pack (\cref{sec:ekf}); an aged pack is already limited by the power limit, which uses $k_R$.
+
+Other candidates were evaluated with data and not adopted: the SOC uncertainty of the filter never exceeded 0.75\,\%, a thermal $I^2t$ budget never exceeded 49\,\%, and the nominal group-voltage spread (18--46\,mV) overlapped with the values a fault would produce. A literature review of further criteria (voltage window, lithium-plating risk, ageing-rate gauge, self-discharge) is left for future work.
+
+\Cref{fig:stress} shows the index on an aged pack with degraded cooling on a hot day, and during an external heat event.
+
+\fig{stress_index_drive}{0.95}{Stress index in closed loop: (a) aged pack, 40\,°C, degraded cooling; (b) external heat at $t = 600$\,s.}{fig:stress}
+
+\section{Passive balancing}
+Groups drift apart in SOC because their capacity and self-discharge differ. A group whose voltage is more than 10\,mV above the lowest is discharged through a 10\,$\Omega$ resistor (0.41\,A) until it is within 5\,mV, after the conditions have held for 60\,s, never while driving, never below 3.40\,V and never above 45\,°C. On the bench, with the balancing effect on SOC accelerated 500 times for the demonstration, the voltage spread fell from 21.7 to 8.9\,mV and the SOC spread from 2.2 to 0.9\,\%. At real speed 1\,\% SOC on a 58\,Ah group takes about 1.4\,h. Balancing aligns SOC; it cannot remove a capacity difference. Losing the cell frames only disables balancing; it does not stop the pack. \todo{balancing figure}
+
+\section{Thermal event after shutdown}
+UN GTR 20 asks for a warning when a thermal event develops in a parked vehicle. In SAFE-STOP, with less than 2\,A flowing, the controller raises a latched thermal-event flag when the surface keeps rising above ambient faster than 1\,°C/min for 1\,s. Right after a shutdown the core heat soaks into the surface for a few seconds, so without an active thermal anomaly the flag waits 90\,s. In simulation there was no false alarm in heat-soak runs; external heat of 2--5\,W per cell was flagged after about 91\,s (10\,s with the anomaly latched); 1\,W per cell was not detected. On the bench the event followed the safe stop by 1.0\,s.

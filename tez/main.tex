@@ -1,0 +1,78 @@
+% Tez ana dosyası. Derleme: pdfLaTeX + BibTeX (Overleaf varsayılanı) ya da latexmk -pdf main.tex.
+% Figürler ../results/ klasöründen okunur; Overleaf için make_overleaf_zip.py figürleri figures/ altına toplar.
+% Taslak: 2026-11-22. Sayılar tez notlarının "FINAL REGENERATION 2026-11-22" bölümünden.
+\documentclass[11pt,a4paper,oneside]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[english]{babel}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{setspace}\onehalfspacing
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\sisetup{detect-all, per-mode=symbol}
+\usepackage{graphicx}
+\graphicspath{{figures/}{../results/}}
+\usepackage{booktabs,tabularx,array}
+\usepackage{caption}\captionsetup{font=small,labelfont=bf}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cleveref}
+\usepackage{enumitem}\setlist{noitemsep,topsep=3pt}
+
+% taslak notu: son halde \todo{} satırları silinir
+\newcommand{\todo}[1]{\textcolor{orange}{[TODO: #1]}}
+% figür kısayolu, argümanlar: dosya adı, genişlik (\linewidth oranı), başlık, etiket
+\newcommand{\fig}[4]{\begin{figure}[htbp]\centering\includegraphics[width=#2\linewidth]{#1}\caption{#3}\label{#4}\end{figure}}
+
+\title{A Battery Management System for a 19S12P Li-ion Pack,\\Verified in the Loop Against a Low-Cost Digital Twin}
+\author{Berkan Talha Yanbaş}
+\date{\todo{month year}}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  {\large \todo{University}\\ \todo{Faculty / Department}\par}
+  \vspace{3cm}
+  {\LARGE\bfseries A Battery Management System for a 19S12P Li-ion Pack, Verified in the Loop Against a Low-Cost Digital Twin\par}
+  \vspace{2cm}
+  {\large Berkan Talha Yanbaş\par}
+  \vspace{1cm}
+  {\large Bachelor's Thesis\par}
+  \vfill
+  {\large Supervisor: \todo{name}\par}
+  \vspace{1cm}
+  {\large \todo{City, month year}\par}
+\end{titlepage}
+
+\pagenumbering{roman}
+\input{chapters/00_abstract}
+\tableofcontents
+\listoffigures
+\listoftables
+\input{chapters/00_abbreviations}
+\cleardoublepage
+\pagenumbering{arabic}
+
+\input{chapters/01_introduction}
+\input{chapters/02_background}
+\input{chapters/03_design}
+\input{chapters/04_models}
+\input{chapters/05_estimation}
+\input{chapters/06_decision}
+\input{chapters/07_verification}
+\input{chapters/08_safety}
+\input{chapters/09_monitoring}
+\input{chapters/10_discussion}
+\input{chapters/11_conclusion}
+
+\bibliographystyle{unsrtnat}
+\bibliography{references}
+
+\appendix
+\input{chapters/12_appendix}
+
+\end{document}

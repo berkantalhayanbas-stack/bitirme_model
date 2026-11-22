@@ -1,0 +1,16 @@
+\chapter{Conclusion and future work}\label{ch:conclusion}
+
+\section{Conclusion}
+This thesis built a BMS controller for a 19S12P pack on an automotive-class microcontroller and verified it in closed loop against a digital twin on a separate, inexpensive board. The SOC filter reaches 0.277\,\% RMSE and copes with current-sensor offsets and resistance changes; the thermal layer estimates the core temperature, detects failing cooling from its own estimates and detects unexplained heating within seconds; the decision layer reacts in steps and explains each decision. On the target, 1000 randomised runs all passed, with the board and the PC agreeing on every verdict.
+
+The most important result concerns the method. The HIL bench found three design flaws that the model, software and processor tests had passed, because only the bench created the situations in which they appear: a slowly converging estimate, a restart on a warm pack, and heat the model did not know about. The project therefore delivers three things that belong together: a working BMS, a cheap platform that tests it safely, and data that show why both are needed.
+
+\section{Future work}
+\begin{itemize}
+  \item Capacity estimation in the SOC filter, and a stored SOH with usage counters.
+  \item Further stress criteria from the literature review (voltage window, lithium-plating risk, ageing-rate gauge).
+  \item Diagnostics over UDS with stored trouble codes; secure on-board communication and secure boot.
+  \item A real cell-monitoring board in place of the twin, with analog fault insertion.
+  \item A full ISO 26262 hazard analysis with safety goals and ASIL assignment.
+  \item Plett's horizon-based power limits and a voltage plausibility check (pack voltage against the sum of group voltages).
+\end{itemize}

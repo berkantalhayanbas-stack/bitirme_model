@@ -1,0 +1,77 @@
+\chapter{Estimation algorithms}\label{ch:estimation}
+
+All estimators run in every 100\,ms step on the ECU. They see only the CAN measurements: pack current, pack voltage, one surface temperature, the ambient temperature and the 19 group voltages.
+
+\section{SOC estimation}\label{sec:ekf}
+\paragraph{Filter.} The SOC is estimated with an EKF on the pack-level two-RC model. The state vector is
+\begin{equation}
+  x = [\,z,\ v_1,\ v_2,\ b_I,\ k_R\,]^\top,
+\end{equation}
+where $b_I$ is the offset of the current sensor and $k_R$ scales the nominal ohmic resistance. The measurement is the pack voltage, $y = N_s\,\mathrm{OCV}(z) - k_R R_0(T)\,(i - b_I) - v_1 - v_2$, with the OCV as a seventh-order polynomial fitted to the table ($R^2 = 0.99962$). The RC resistances follow the measured Arrhenius law using the measured temperature. A normalised innovation gate (10\,$\sigma$) rejects single impossible jumps such as electromagnetic spikes; if five samples in a row are rejected the gate opens, because then the model and not the measurement is wrong.
+
+\paragraph{Why the extra states.} The bias state $b_I$ exists because Coulomb counting turns a constant current offset into a growing SOC error. The resistance state $k_R$ was added after a sensitivity analysis (\cref{sec:sens}) showed that without it a resistance mismatch is absorbed by $b_I$; on an aged pack this made the current offset look larger than 5\,A and triggered a false sensor fault in 11--36\,\% of the runs.
+
+\paragraph{Start-up zero-current check.} The EKF can only see a current offset slowly, and only where the OCV curve is curved \citep{zhao2017}. In a sweep from $-12$ to $+12$\,A, offsets of $\pm8$\,A were never flagged and $+10$\,A only after about 1040\,s. Industry practice is to calibrate the offset while the contactor is still open. The controller therefore holds the allowed current at zero for the first second after start-up and keeps the relay open; the mean measured current is then the offset. The EKF bias state starts from this value, and an offset larger than 3\,A (1\,\% of a 300\,A Hall sensor) is reported as a current-sensor fault. Detection time fell from ``never / 1000--1660\,s'' to 0.9\,s, and the SOC error inside $\pm3$\,A became flat (0.29--0.30\,\% instead of 0.14--0.83\,\%) (\cref{fig:bias}). A design lesson from the first version: flagging the fault without also compensating the known offset made the SOC worse than not checking at all.
+
+\fig{bias_sweep}{0.85}{Current-offset sweep: detection time and SOC error with and without the start-up zero-current check.}{fig:bias}
+
+\paragraph{Start-up resistance freeze.} On the bench a full-battery charge started a few seconds after an ECU restart pushed $k_R$ to its upper limit of 2.0 on a new pack. The SOC estimate had not yet converged from its initial 50\,\%, and the filter explained the voltage mismatch with a larger resistance. This also halved the charge limit, because the power limit uses $k_R$. The update of $k_R$ is therefore frozen for the first 120\,s; after the fix the same test kept $k_R$ at 1.00 (0.98 afterwards).
+
+\paragraph{Results.} On the reference drive the SOC error after 60\,s is 0.277\,\% RMSE (maximum 0.517\,\%) and the filter converges from a wrong initial SOC within 0.3\,s. \Cref{tab:est} compares it with simpler estimators on the same data.
+
+\begin{table}[htbp]\centering\small
+\caption{SOC estimators on the reference drive (error after 60\,s, \%).}\label{tab:est}
+\begin{tabular}{@{}lrrr@{}}\toprule
+Estimator & RMSE normal & max normal & RMSE hot day \\\midrule
+OCV lookup & 17.0 & 36.2 & 14.6 \\
+OCV lookup, IR-compensated & 7.05 & 19.4 & 7.50 \\
+Coulomb counting (OCV start) & 0.863 & 1.14 & 0.863 \\
+EKF, fixed $R_0$ & 0.724 & 1.09 & 2.52 \\
+EKF, $R_0(T)$ & 0.288 & 0.655 & 0.283 \\
+EKF, $R_0(T)$ + bias (proposed) & \textbf{0.277} & \textbf{0.517} & 0.311 \\\bottomrule
+\end{tabular}
+\end{table}
+
+\fig{estimator_comparison_normal}{0.9}{SOC error of the estimators on the reference drive.}{fig:est}
+
+\section{Sensitivity to model errors}\label{sec:sens}
+The controller always uses nominal parameters. To see how much a wrong model hurts, the twin's parameters were perturbed one at a time (24 perturbations) on four scenarios: normal drive, hot drive with cooling fault, deep discharge and full charge. The safety criteria (core below 55\,°C, voltages within 2.8--4.2\,V, no false safe stop) held in all 25 cases. The SOC error is most sensitive to $R_0$, the RC branches and the OCV; thermal parameters, activation energies and sensor noise barely matter. After adding $k_R$, a $\pm20$\,\% error in $R_0$ costs 0.22--0.29\,\% SOC RMSE instead of 0.94--2.09\,\%.
+
+The analysis found a second flaw: the temperature rate check (a jump of more than 2\,°C between samples) latched the sensor as invalid at twice the nominal noise. It now compares against a fast low-pass filter and needs three samples in a row.
+
+\fig{sensitivity}{0.9}{Sensitivity of SOC error and safety criteria to twin parameter errors.}{fig:sens}
+
+\section{Core temperature and cooling}\label{sec:thermal}
+A second EKF estimates the core temperature from the two-node model. Its state is $[T_c,\ T_s,\ g]$ with $g = 1/R_u$, the cooling conductance; only $T_s$ is measured and the heat input is $q = i\,(\mathrm{OCV}(\hat z) - v)$. Because $g$ is estimated, the controller can notice a failing cooling system on its own: if $\hat R_u$ rises above 18\,K/W (twice the nominal) a cooling alarm is raised, and it is cleared below 15\,K/W.
+
+Two flaws in this alarm were found only on the HIL bench (\cref{sec:flaws}). Without the hysteresis the alarm chattered while $\hat R_u$ converged. After every restart of the ECU on a warm, loaded pack, the observer started with $T_c = T_s$ and $\hat R_u$ briefly exceeded 30\,K/W, a false alarm with healthy cooling (21 of 32 restart instants in simulation). A 120\,s blanking after start-up removed all false alarms while still detecting all 32 real faults.
+
+$R_u$ is only observable through heating and cooling, so a cooling fault is detected only when heat flows. In the Monte Carlo test (\cref{sec:mc}) 48\,\% of the cooling faults were found within the 600\,s run (median 138\,s); the others stayed undetected but safe (core below 45\,°C).
+
+\fig{thermal_observer_cooling_fault}{0.85}{Core-temperature observer during a cooling fault.}{fig:cool}
+
+\section{Unmodelled heat}\label{sec:anomaly}
+The observer only knows the heat it can compute from current and voltage. On the bench the twin heated the pack externally at 0.5\,°C/s (an external fire or the start of an internal short). The estimated core temperature stayed near 26\,°C while the true core reached 55\,°C: the observer explained the rising surface temperature by driving the cooling conductance $g$ to its lower limit, so the core estimate was never pulled up. A Python copy of the observer fed with the logged ECU inputs reproduced this exactly, so it is a property of the design, not a firmware bug.
+
+Two mechanisms close this gap:
+\begin{enumerate}
+  \item \textbf{Measurement-anchored core bound.} In steady state the core is warmer than the surface by $T_c - T_s = (R_c/R_u)(T_s - T_a)$, whatever the heat source. The bound $T_\mathrm{ss} = T_m + (R_c/R_u)(T_m - T_a)$ with the nominal $R_u$ is evaluated on the measurement and triggers LIMP above 55\,°C and SAFE above 60\,°C. On the bench the safe stop moved from a true core temperature of 66.4\,°C to 60.0\,°C.
+  \item \textbf{Thermal anomaly detector (adiabatic envelope).} The detector asks whether the measured surface rises faster than the known heat could explain even with no cooling at all. It propagates the two-node model with $g = 0$ and with the known heat inflated (1.5$\times$ plus 0.2\,W per cell) over two staggered 120\,s windows, restarted from the measurement. If the filtered measurement exceeds this envelope by 1.5\,°C for 1\,s, the detector latches: the state goes to LIMP-HOME, the cooling estimate is frozen and the core estimate is lifted to at least $T_\mathrm{ss}$.
+\end{enumerate}
+In simulation the detector found external heat after 6.6--10.4\,s and an internal 5\,W per cell source after 74\,s, with no false alarm in 48 nominal and mismatched runs; the core-estimate error after the fault fell from $-52$ to $-5$\,°C (\cref{fig:anomaly}). In the Monte Carlo test detection took a median 8.0\,s (maximum 11.7\,s).
+
+A negative result is worth noting: a CUSUM test on the observer's innovation was tried first. It detected only fast external heating, absorbed internal heat as a cooling change, and gave a false alarm after a warm restart.
+
+\fig{thermal_anomaly}{0.9}{Thermal anomaly detector: true core, estimated core, envelope and detection.}{fig:anomaly}
+
+\section{Sensor diagnostics}
+The temperature channel is checked for range ($-30$ to 85\,°C), for a frozen value (5\,s unchanged) and for rate (three samples more than 2\,°C away from a fast low-pass filter). A pulled-out sensor reads $-40$\,°C and is flagged in the same sample. A failed temperature or current sensor sends the pack to LIMP-HOME. Pre-filtering the measurements was studied and rejected: filters reduce threshold chatter but delay detection, and hysteresis on the decision does the same job without the delay (\cref{fig:prefilter}).
+
+\fig{prefilter_tradeoff}{0.8}{Pre-filter trade-off: delay versus noise and threshold chatter.}{fig:prefilter}
+
+\section{State of health with machine learning}
+An online estimator tracks the resistance ratio from current steps (at least 20\,A between samples). A depth-3 decision tree, trained on the Kirkaldy data with usage features (equivalent full cycles, days, mean temperature, mean SOC, depth of discharge) and the resistance ratio, estimates the SOH and is exported as C code. In leave-one-cell-out cross-validation the tree reaches 2.57\,\% SOH RMSE, against 1.93\,\% for gradient boosting and 3.03\,\% for a physics-based ageing model; the tree was chosen for its size on the microcontroller (\cref{fig:ml}). In a simulated aged-pack demonstration, feeding the learned SOH and resistance back into the SOC filter reduced the SOC RMSE from 1.44\,\% (BMS assumes a new cell) to 0.48\,\%, close to the 0.29\,\% obtained with the true values.
+
+Two limits must be stated. The SOH estimate needs usage counters that are not stored across restarts on the ECU, and the online resistance estimator never sees a 20\,A step on the smooth drive cycle used on the bench, so the SOH shown there stays near 100\,\%. The resistance state $k_R$ of the SOC filter does track ageing within minutes and is used for the power limit.
+
+\fig{ml_model_comparison}{0.85}{SOH models compared in leave-one-cell-out and leave-one-condition-out validation.}{fig:ml}

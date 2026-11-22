@@ -1,0 +1,15 @@
+\chapter{Remote monitoring}\label{ch:monitoring}
+
+\section{Architecture}
+For monitoring, the ECU writes one compact telemetry line per step on its serial port (time, SOC, SOH, core temperature, allowed current, state, CAN error counters) plus an event line whenever its state or a cause changes; an extended line adds the measurements and the stress criteria. A gateway program on a PC reads the serial port, groups the rows into 1\,s batches and sends them over HTTPS to a PHP server with an SQLite database on shared web hosting. A web dashboard shows the live state, the stress criteria and the reaction times of the bench button tests.
+
+The dashboard only monitors. All safety decisions stay on the ECU, which keeps working if the network fails \citep{li2020}. Connecting a BMS to the cloud opens attack paths \citep{naseri2023}; the gateway therefore authenticates with an API key kept out of the source code and numbers each batch, so the server can reject repeated batches (replay).
+
+\fig{web_dashboard_live}{0.9}{Web dashboard during a bench test.}{fig:dash}
+
+\section{Link quality}
+The link was measured for 30\,min with the real ECU (10\,Hz telemetry, normal drive) and the real server. All 18\,046 rows arrived; there were no lost, corrupt, repeated or rejected rows. The upload round-trip time had a median of 102\,ms and a 95th percentile of 134\,ms, with rare network spikes up to 1.4\,s that caused no loss. The end-to-end delay from reading a row on the PC to the server's acknowledgement was 155\,ms for the newest row of a batch and 1.16\,s for the oldest; the difference is the 1\,s batching, by design (\cref{fig:link}). Shorter batches would cut this delay but raise the request load on shared hosting.
+
+\fig{link_quality_20261121}{0.9}{Remote-monitoring link over 30\,min: (a) round-trip time per batch, (b) distributions of round-trip and end-to-end delay.}{fig:link}
+
+Two measurement lessons came out of this test. The one-way delay could not be measured, because the PC clock was not synchronised and was ahead of the server by about 230\,ms; only delays measured on a single clock (round-trip and end-to-end) are reported. And the serial-port jitter, first measured against the smallest delay of the session, grew linearly with time: the ECU and PC clocks drift apart by about 500\,ppm. Referencing the jitter to a 5\,s sliding minimum removed the drift (95th percentile 34\,ms).

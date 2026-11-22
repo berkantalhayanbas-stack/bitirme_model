@@ -1,0 +1,20 @@
+\chapter{CAN database}\label{app:dbc}
+The message encoding is implemented once in \texttt{bms\_can.c} and copied to every node. For tool support, a DBC file (\texttt{tools/can/bms.dbc}, 11 messages, 101 signals, Intel byte order) describes the same frames, including the counter and CRC as signals and the receiver rules in comments. It was checked by encoding 14\,000 random frames with \texttt{bms\_can.c}, decoding them with the DBC and re-encoding them: all were byte-identical. \todo{frame layout table per message}
+
+\fig{can_bus_load}{0.8}{Calculated and measured CAN bus load.}{fig:busload}
+\fig{can_la_frame_0x110}{0.9}{Frame 0x110 captured with the on-chip logic analyser.}{fig:la}
+
+\chapter{Monte Carlo verdict criteria}\label{app:mc}
+\begin{tabular}{@{}ll@{}}\toprule
+Fault & PASS when \\\midrule
+None & no LIMP, SAFE, cooling, sensor, anomaly or stress cause \\
+Cooling failure & core below 56\,°C, no SAFE \\
+External heat & anomaly LIMP within 15\,s; LIMP core $\le$ 57\,°C, SAFE core $\le$ 62\,°C \\
+Open sensor & sensor LIMP within 0.5\,s \\
+Current offset & sensor LIMP within 1\,s \\
+Aged pack & resistance criterion raised within the run; no LIMP or SAFE \\
+All (except aged) & SOC error after 120\,s below 4\,\% \\\bottomrule
+\end{tabular}
+
+\chapter{Configuration constants}\label{app:config}
+\todo{table of the main constants of bms\_config.h with their source}
