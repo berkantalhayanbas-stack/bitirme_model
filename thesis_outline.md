@@ -66,7 +66,7 @@ One line per point:
 - 6.2 Stress index Ψ = max + κ(sum − max), κ = 0.25; criteria Ψ_T (45→55 °C), Ψ_C (cooling alarm, 0.3), Ψ_Tdot (3→10 °C/min, 0.5); Ψ_H display only.
   Explain the dropped criteria with data: σ_SOC max 0.75 %, I²t max 49 %, nominal ΔV 18–46 mV, k_R jump at boot.
   ✅ `stress_index_drive.png`
-- 6.3 Passive balancing (10/5 mV hysteresis, 60 s, off while driving): ΔV 21.7 → 8.9 mV with ×500 acceleration (state the acceleration). ✍️ TODO: balancing figure (decided 2026-11-22).
+- 6.3 Passive balancing (10/5 mV hysteresis, 60 s, off while driving): ΔV 21.7 → 8.9 mV with ×500 acceleration (state the acceleration). ✅ `balancing_bench.png` / `.csv` (bench 2026-11-22, parked 0 A, x500 SOC acceleration): ΔV 21.4 → 8.3 mV, group SOC spread 2.2 → 0.8 %, up to 11 resistors on, active 44 s bench ≈ 6.1 h real; residual below the 10 mV start threshold; ECU ΔV tracks twin (1 mV CAN resolution); CAN errors 0. Real 10 Ω / 0.41 A needs ~1.4 h per 1 % SOC on a 58 Ah group → state the acceleration.
 - 6.4 Thermal event after shutdown (cause 2048, UN GTR 20): bench 1.0 s after SAFE; 90 s soak guard; 1 W/cell not detected. ✍️
 
 ## 7 Verification
