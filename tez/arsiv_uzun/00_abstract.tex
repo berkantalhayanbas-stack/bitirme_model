@@ -1,0 +1,21 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+A battery management system (BMS) has to estimate quantities it cannot measure, such as the state of charge (SOC) and the core temperature of the cells, and it has to react safely when something goes wrong. Testing this on real cells is slow and expensive, and many of the interesting faults are too dangerous to provoke on purpose.
+
+This thesis presents BMS software for a 19S12P pack of LG INR21700 M50-family cells, written in register-level C for an STM32G431 microcontroller. The software contains a five-state extended Kalman filter for SOC, a core-temperature observer, a thermal anomaly detector, sensor diagnostics and a graded decision layer (NORMAL, DERATE, LIMP-HOME, SAFE-STOP) driven by a multi-criteria stress index. The controller is verified in closed loop over a real CAN bus against a digital twin of the pack that runs on a separate Arduino Uno. The twin model is parameterised with published measurements of the M50T cell.
+
+The SOC error after convergence is 0.277\,\% RMSE on the reference drive. In 1000 randomised closed-loop runs executed on the target microcontroller, every run passed its fault-specific verdict, and the board and a PC build of the same C code gave identical verdicts in all 1000 runs. An unmodelled external heat source is detected after a median of 8.0\,s. The hardware-in-the-loop bench found three design flaws that the model-, software- and processor-in-the-loop stages had missed. A 30-minute remote-monitoring test delivered all 18\,046 telemetry rows with a median round-trip time of 102\,ms.
+
+\chapter*{Özet}
+\addcontentsline{toc}{chapter}{Özet}
+
+\todo{Türkçe özet: İngilizce özetin çevirisi; üniversitenin istediği uzunlukta. Taslak aşağıda.}
+
+Batarya yönetim sistemi (BMS), doğrudan ölçemediği büyüklükleri (şarj durumu, hücre çekirdek sıcaklığı) kestirmek ve bir arıza olduğunda güvenli tepki vermek zorundadır. Bunu gerçek hücrelerle sınamak yavaş ve pahalıdır; ilginç arızaların çoğu da bilerek oluşturulamayacak kadar tehlikelidir.
+
+Bu tezde 19S12P LG INR21700 M50 ailesi hücrelerden oluşan bir paket için STM32G431 mikrodenetleyicide register seviyesinde C ile yazılmış bir BMS yazılımı sunulmaktadır. Yazılım; şarj durumu için beş durumlu genişletilmiş Kalman filtresi, çekirdek sıcaklığı gözlemcisi, termal anomali dedektörü, sensör teşhisi ve çok kriterli bir stres indeksiyle çalışan kademeli karar katmanı (NORMAL, DERATE, LIMP-HOME, SAFE-STOP) içerir. Denetleyici, ayrı bir Arduino Uno üzerinde çalışan paketin dijital ikizine karşı gerçek bir CAN hattı üzerinden kapalı çevrimde doğrulanmıştır.
+
+Yakınsamadan sonra SOC hatası 0,277\,\% RMSE'dir. Mikrodenetleyicide koşturulan 1000 rastgele kapalı çevrim koşusunun tamamı geçmiş; kart ve aynı C kodunun PC derlemesi 1000 koşunun hepsinde aynı hükmü vermiştir. Modelde olmayan dış ısı ortalama 8,0\,s'de fark edilmiştir. Donanım-döngüde test düzeneği, önceki aşamaların kaçırdığı üç tasarım hatası bulmuştur.
+
+\textbf{Keywords:} battery management system, extended Kalman filter, digital twin, hardware-in-the-loop, CAN, functional safety.

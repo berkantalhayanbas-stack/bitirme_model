@@ -1,44 +1,9 @@
-\chapter{Background and related work}\label{ch:background}
+\chapter{Background}\label{ch:background}
 
-\section{Lithium-ion cell behaviour}
-\paragraph{Open-circuit voltage.} When a cell has rested long enough, its terminal voltage equals the open-circuit voltage (OCV), which is a fixed function of the state of charge (SOC). This curve is the main link between something we can measure (voltage) and something we want to know (SOC). For NMC cells such as the M50T it is fairly flat in the middle of the SOC range, so a small voltage error there means a large SOC error.
+\paragraph{SOC estimation.} Coulomb counting integrates the current; it is cheap but drifts with sensor offset and noise. Reading the SOC from the open-circuit voltage (OCV) works only after the cell has rested. Model-based estimators combine both: an extended Kalman filter (EKF) predicts the cell state with an equivalent circuit model and corrects it with the measured voltage \citep{plett2004ekf}. The model used here is a resistance $R_0$ in series with two resistor--capacitor branches; all resistances depend on temperature through the Arrhenius law \citep{plett2015}. A sensor offset can be added to the filter state, but it is observable only where the OCV curve is curved \citep{zhao2017}. Data-driven estimators such as recurrent neural networks can learn the non-linear behaviour from history \citep{nejakar2025}.
 
-\paragraph{Equivalent circuit model.} Under load the terminal voltage departs from the OCV. A common way to describe this is an equivalent circuit model (ECM): a series resistance $R_0$ for the instantaneous ohmic drop, plus one or more resistor--capacitor (RC) branches for the slower polarisation effects (charge transfer and diffusion) \citep{plett2015}. With two RC branches the cell voltage is
-\begin{equation}
-  v = \mathrm{OCV}(z) - R_0\, i - v_1 - v_2, \qquad \dot v_k = -\frac{v_k}{R_k C_k} + \frac{i}{C_k},
-\end{equation}
-where $z$ is the SOC, $i$ the cell current (positive in discharge) and $v_k$ the voltage across RC branch $k$. The SOC itself follows from charge counting, $\dot z = -i/Q$, with $Q$ the cell capacity. A two-branch model is a compromise: real cells have a spread of time constants, and adding branches improves the fit only slowly \citep{haupt2013}.
+\paragraph{Thermal behaviour.} Heat generated in the cell is $q = i\,(\mathrm{OCV} - v)$ \citep{bernardi1985}. A cylindrical cell is modelled by two thermal nodes, core and surface \citep{lin2014}. Only the surface can be measured, so the core temperature has to be estimated.
 
-\paragraph{Temperature dependence.} All resistances fall as the cell warms up. The usual description is an Arrhenius law, $R(T) = R_{25}\exp\!\big(\tfrac{E_a}{R_g}(\tfrac{1}{T}-\tfrac{1}{298.15\,\mathrm{K}})\big)$, with an activation energy $E_a$ per process \citep{oregan2022}.
+\paragraph{Digital twins and cloud BMS.} A digital twin mirrors the battery's state in software. Li et al.\ ran SOC and state-of-health estimation in the cloud \citep{li2020}; Nejakar et al.\ synchronised an ESP32 monitor with a cloud database and a dashboard \citep{nejakar2025}. Connecting a BMS to the cloud also opens security risks \citep{naseri2023}, so safety decisions should stay on the vehicle.
 
-\paragraph{Heat generation and thermal model.} The irreversible heat produced in the cell is the current times the difference between the OCV and the terminal voltage, $q = i\,(\mathrm{OCV}-v)$ \citep{bernardi1985}. A cylindrical cell is described well enough for control by two thermal nodes, the core and the surface, connected by a conduction resistance $R_c$; the surface loses heat to the coolant or air through a convection resistance $R_u$ \citep{lin2014}:
-\begin{align}
-  C_c \dot T_c &= q + \frac{T_s - T_c}{R_c}, &
-  C_s \dot T_s &= \frac{T_a - T_s}{R_u} - \frac{T_s - T_c}{R_c}.
-\end{align}
-Only $T_s$ is measured; $T_c$ has to be estimated.
-
-\paragraph{Ageing.} Cells lose capacity and gain resistance as they age \citep{birkl2017,edge2021}. Ageing depends on temperature, SOC window, depth of discharge and charging current \citep{schmalstieg2014,millner2010}. Charging a cold cell can deposit metallic lithium on the anode (lithium plating), which is both an ageing mechanism and a safety risk \citep{waldmann2018}.
-
-\section{State estimation}
-A Kalman filter combines a model prediction with a measurement, weighted by their uncertainties. For a non-linear model such as the ECM, the extended Kalman filter (EKF) linearises the model at the current estimate in every step \citep{plett2004ekf}. The state vector can be augmented with slowly varying unknowns; the filter then estimates them as well. Zhao et al.\ showed that a current-sensor offset added as a state is observable only where the OCV curve is curved, so it is weakly observable on the flat part of the curve \citep{zhao2017}. Zhang et al.\ compared filters on a real pack and used the time to converge from a wrong initial SOC as a benchmark \citep{zhang2017}.
-
-The allowed current, often called state of power (SOP), is the largest current that keeps every cell inside its voltage limits. The simplest estimate divides the voltage headroom by the internal resistance; Plett extended this with SOC limits and a prediction horizon \citep{plett2004pow}.
-
-\section{BMS hardware and safety layers}
-Lelie et al.\ reviewed BMS hardware in production vehicles \citep{lelie2018}. Points that shape this work: CAN is the standard link between the BMS and the vehicle; temperature sensors are few compared with voltage channels, which leaves thermal blind spots; Coulomb counting alone drifts with sensor offset; and opening the contactors while driving can be more dangerous than the fault, which argues for a graded response. Production BMSs add redundant protection paths and follow ISO 26262 \citep{iso26262}; machine-learning components in safety-relevant systems are the subject of ISO/PAS 8800 \citep{isopas8800}.
-
-\section{Hardware-in-the-loop testing of BMS}
-The HIL literature on BMS falls into four groups:
-\begin{enumerate}
-  \item \textbf{Battery-in-the-loop}: a real battery and an electronic load, with the BMS algorithm on a PC \citep{zhang2017}. Realistic cells, but no dangerous faults and no embedded controller.
-  \item \textbf{Laboratory signal-level HIL}: a commercial BMS treated as a black box, tested against cell-voltage emulators and real-time simulators \citep{barreras2016,bui2019,jacob2025}. Barreras et al.\ give a taxonomy of BMS test scenarios that is used to classify the tests in this thesis.
-  \item \textbf{Plant-model frameworks}: detailed real-time battery models with a trivial BMS \citep{pandit2023}.
-  \item \textbf{Monitoring prototypes}: BMS boards that measure and balance but have no estimation, decision or closed-loop test.
-\end{enumerate}
-Haupt et al.\ point out that when only the control strategy is to be tested, it is sufficient to simulate the cell modules by restbus simulation over CAN \citep{haupt2013}. This is exactly the architecture used here.
-
-\paragraph{Gap.} None of the works above combines an own, white-box estimator and decision controller with a low-cost digital twin and measured fault-detection times. This thesis fills that gap.
-
-\section{Digital twins and cloud monitoring}
-A digital twin is a model that runs alongside the physical system and is fed by its data. Li et al.\ used a cloud-based twin for SOC and SOH estimation \citep{li2020}; Naseri et al.\ reviewed the security risks of connecting a BMS to the cloud \citep{naseri2023}. In this thesis the twin replaces the physical pack on the test bench, and a separate cloud dashboard only monitors; all safety decisions stay on the controller.
+\paragraph{Hardware-in-the-loop testing.} In hardware-in-the-loop (HIL) testing a real controller runs against a simulated plant. Laboratory BMS rigs use real-time simulators and cell-voltage emulators \citep{barreras2016,bui2019}. When only the control strategy is tested, it is sufficient to simulate the cell modules over CAN \citep{haupt2013}, which is the approach taken here.

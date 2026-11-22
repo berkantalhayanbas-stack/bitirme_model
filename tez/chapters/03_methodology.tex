@@ -1,0 +1,38 @@
+\chapter{Methodology}\label{ch:method}
+
+The system has four layers (\cref{fig:arch}): the \emph{physical layer} is the digital twin of the pack, the \emph{edge layer} is the BMS controller, the \emph{cloud layer} is the gateway and server, and the \emph{user interface} is the web dashboard. The methodology is described in six blocks, following the structure of \citet{nejakar2025}.
+
+\fig{system_block_diagram}{0.95}{System architecture. \todo{redraw as four layers (twin / BMS / cloud / dashboard), English labels}}{fig:arch}
+
+\section{Digital twin of the pack}
+The twin simulates a 19S12P pack (58.2\,Ah, about 4\,kWh): 19 series groups, each with its own SOC and a two-RC electrical model, a two-node thermal model and a simple vehicle model that turns a drive cycle into a current demand. Its parameters come from public measurements of 40 LG M50T cells \citep{kirkaldy2024}: the OCV curve, the resistances, their temperature dependence and the resistance growth with ageing. The twin adds realistic sensor noise and clips its current to the limit sent by the BMS, which closes the loop. It runs at 10\,Hz on an Arduino Uno.
+
+\section{Real-time data acquisition}
+Every 100\,ms the twin sends the pack current, pack voltage, surface and ambient temperature and the 19 group voltages over CAN at 500\,kbit/s. Each frame carries a counter and a CRC-8 checksum, so lost, repeated or corrupted frames are detected; if no valid measurement arrives for 500\,ms the BMS treats the measurement line as lost.
+
+\section{SOC estimation}
+The SOC is estimated with an EKF whose state is
+\begin{equation}
+  x = [\,z,\ v_1,\ v_2,\ b_I,\ k_R\,]^\top,
+\end{equation}
+the SOC $z$, the two RC voltages, the current-sensor offset $b_I$ and a resistance scale $k_R$. The offset state removes the drift of Coulomb counting; the resistance state keeps the filter accurate as the cell ages. At start-up the contactor stays open for one second, so the measured current is pure offset; the filter starts from this value and an offset above 3\,A is reported as a sensor fault.
+
+As a machine-learning component, a small decision tree trained on the same ageing data estimates the state of health (SOH) from usage and resistance and runs on the microcontroller. \todo{decide how much ML to show}
+
+\section{Cloud integration}
+The BMS writes one telemetry line per step to its serial port (SOC, SOH, temperatures, allowed current, state) and an event line whenever its state changes. A Python gateway on a PC groups the lines into 1\,s batches and sends them over HTTPS to a PHP server with an SQLite database. The gateway authenticates with an API key and numbers each batch, so the server rejects repeated batches.
+
+\section{Web dashboard}
+The dashboard shows the live state, SOC, temperatures, allowed and measured current and the reasons for any current limit. A second view shows the stress criteria and the reaction times of the bench fault tests.
+
+\section{Decision and alert mechanism}
+Instead of fixed alarm thresholds, the BMS limits the current in four graded states:
+\begin{description}
+  \item[NORMAL] full datasheet current;
+  \item[DERATE] reduced current because of high temperature, a cooling problem, a fast temperature rise or low voltage headroom;
+  \item[LIMP-HOME] 25\,\% current because a sensor failed or unexplained heating was detected;
+  \item[SAFE-STOP] zero current and the contactor opened: core above 60\,°C, voltage outside its limits, lost measurements, or a software fault.
+\end{description}
+The derating criteria are combined into one stress index $\Psi = \min\big(1, \Psi_\mathrm{max} + 0.25\,(\sum\Psi_i - \Psi_\mathrm{max})\big)$ and the allowed current is $I_\mathrm{datasheet}(1-\Psi)$.
+
+Two estimators feed this logic. A second Kalman filter estimates the core temperature and the cooling resistance, which reveals a failing cooling system. A thermal anomaly detector checks whether the measured surface temperature rises faster than the known heat could explain even without cooling; if so, an unknown heat source is present and the BMS goes to LIMP-HOME.

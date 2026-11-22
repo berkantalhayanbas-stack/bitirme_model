@@ -1,0 +1,7 @@
+\chapter{Conclusion}\label{ch:conclusion}
+
+This thesis built a digital-twin-based BMS with cloud monitoring. A twin of a 19S12P pack, fitted to measured M50T data, feeds a BMS controller on an STM32 over CAN, and a gateway forwards the telemetry to a web dashboard. The BMS estimates the SOC with 0.28\,\% RMSE, detects unexplained heating within seconds and limits the current in four graded states. It passed 1000 randomised runs on the microcontroller, and the cloud link delivered all telemetry without loss.
+
+Compared with cloud monitoring systems such as \citet{nejakar2025}, the main step forward is control: the BMS does not only report a problem, it protects the battery, and the digital twin makes it possible to test this safely.
+
+\paragraph{Future work.} Testing with real cells and a cell-monitoring board; capacity estimation; a learned SOC component combined with the EKF, as in the base paper; and a mobile interface.

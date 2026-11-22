@@ -6,6 +6,28 @@ Okuma önerisi: önce bu belgenin bir bölümünü oku, sonra tezdeki aynı böl
 
 ---
 
+## Taslak 2 (kısa sürüm, 22 Kasım): baz makale ve yeni yapı
+
+**Baz makale:** Nejakar vd. 2025, "Cloud-Integrated Digital Twin for Intelligent Battery Monitoring and SOC Prediction" (IEEE TEMSMET, 5 sayfa).
+- **Onların sistemi:** ESP32 + sensörler (gerilim bölücü, ACS712, DS18B20, GPS) + Firebase + React panel. SOC için Kalman + RNN hibriti, MAE %2,6. Uyarılar eşik tabanlı: SOC < %20, T > 50 °C.
+- **Bizimle ilişkisi:** Aynı üç ayak bizde de var: dijital ikiz, SOC kestirimi, bulut izleme. Bizim ekimiz **kontrol**: BMS yalnız uyarmıyor, akımı kısıp bataryayı koruyor. İkiz de testte gerçek paketin yerini alıyor.
+- **Karşılaştırma tablosu** (Tablo 5.3): sayılarımızı onlarınkiyle doğrudan yarıştırmadık, çünkü ölçütler farklı. Onların hatası gerçek 12 V bataryada MAE, bizimki ikizin gerçek SOC'sine göre RMSE. Jüri sorarsa bunu söyle.
+
+**Yeni yapı, makalenin iskeleti:**
+
+| Kısa tez | Ne var | Ayrıntısı aşağıda |
+|---|---|---|
+| 1 Giriş | sorun, makaleye göre konumumuz, katkılar | Bölüm 1 |
+| 2 Arka plan | SOC yöntemleri, termal, dijital ikiz/bulut, HIL | Bölüm 2 |
+| 3 Yöntem (A-F) | 4 katman: ikiz / BMS / bulut / panel; veri toplama, EKF, bulut, panel, karar | Bölüm 3, 5, 6, 9 |
+| 4 Donanım | tablo + gerçek zaman | Bölüm 3 |
+| 5 Sonuçlar | model doğruluğu, SOC tablosu, Monte Carlo, HIL'in bulduğu 3 hata, bulut, panel, makaleyle karşılaştırma | Bölüm 4, 5, 7, 9 |
+| 6 Sonuç | | Bölüm 10-11 |
+
+Uzun ilk taslak silinmedi: `tez/arsiv_uzun/`. Bir konuyu detaylandırmak istediğimizde oradan paragraf çekeceğiz. Aşağıdaki bölüm açıklamaları uzun taslağın numaralarına göre; içerik aynı.
+
+---
+
 ## Büyük resim (tek paragraf)
 
 Bir elektrikli aracın bataryasını yöneten yazılımı (BMS) sıfırdan yazdık ve gerçek bir otomotiv mikrodenetleyicisinde (STM32) çalıştırdık. Gerçek batarya kullanmak yerine bataryanın bilgisayar modelini ("dijital ikiz") ayrı bir karta (Arduino) koyduk. İki kartı arabalardaki gibi CAN hattıyla bağladık. Böylece BMS'e, gerçek hücrelerde yapılamayacak arızaları (yangına yakın ısınma, kopuk sensör, kesik kablo, donan yazılım) güvenle ve tekrar tekrar yaşattık, ve tepkisini ölçtük.

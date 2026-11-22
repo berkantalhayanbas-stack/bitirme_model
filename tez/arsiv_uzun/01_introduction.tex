@@ -1,0 +1,31 @@
+\chapter{Introduction}\label{ch:intro}
+
+\section{Motivation}
+The battery pack is the most expensive and the most safety-critical part of an electric vehicle. A lithium-ion cell is safe only inside a narrow window of voltage, current and temperature; outside it the cell ages quickly, and at the extreme it can go into thermal runaway \citep{feng2018}. The battery management system (BMS) keeps the pack inside this window. It does three things at the same time: it measures what it can (cell voltages, pack current, a few temperatures), it estimates what it cannot measure (state of charge, core temperature, internal resistance), and it decides how much current the vehicle may draw or push back.
+
+The estimation part matters because the dangerous quantities are hidden. The temperature that matters for degradation and for runaway is the temperature inside the cell, but a sensor can only be glued to the surface. The state of charge cannot be read off a voltmeter while current flows, because the terminal voltage also depends on the internal resistance and on slow polarisation effects. A BMS that only compares raw measurements against limits reacts late, and a BMS that trusts an estimate blindly reacts wrongly when the model does not match the cell.
+
+The decision part matters because the obvious reaction to a problem, opening the main contactor, is itself dangerous in a moving car \citep{lelie2018}. A good BMS therefore reacts in steps: it first reduces the allowed current, then limits the car to a ``limp-home'' level, and only disconnects the pack when nothing else is safe.
+
+Testing all this is the hard part. Many of the cases a BMS must handle (a broken temperature sensor, a failed cooling system, an external heat source, a lost measurement line, a software hang) cannot be produced on a real pack safely or repeatably. Industry solves this with hardware-in-the-loop (HIL) rigs that simulate the pack around a real BMS controller, but such rigs are expensive laboratory equipment \citep{barreras2016,haupt2013}.
+
+\section{Aim and scope}
+The aim of this thesis is to design a complete BMS controller and to verify it in closed loop against a simulated pack, on hardware that a student can afford. Concretely:
+\begin{itemize}
+  \item BMS software for a 19S12P pack of LG INR21700 M50-family cells, running in real time on an automotive-class microcontroller (STM32G431, Arm Cortex-M4F) and written in register-level C.
+  \item A digital twin of the pack, parameterised with published measurements of the M50T cell \citep{kirkaldy2024}, running on a separate microcontroller and connected to the BMS only through a real CAN bus.
+  \item A verification chain from model-in-the-loop to hardware-in-the-loop, including randomised Monte Carlo testing on the target microcontroller.
+\end{itemize}
+The HIL setup is \emph{communication-based}: the twin sends cell voltages, current and temperature as CAN messages instead of producing analog cell voltages. This tests the control strategy, which is the focus here; analog front-end hardware, insulation monitoring and contactor pre-charge are out of scope (\cref{ch:discussion}).
+
+\section{Contributions}
+\begin{enumerate}
+  \item A working BMS controller on real hardware with a real CAN bus: SOC estimation, core-temperature estimation, thermal anomaly detection, sensor diagnostics, a graded decision layer and functional-safety mechanisms (watchdog, flash CRC, end-to-end protected messages). Only the input side would change for a real pack.
+  \item A low-cost, reusable test platform: an Arduino Uno running the pack twin, an STM32 Nucleo board as the controller and two CAN transceivers. It runs faults that are impossible on real cells (60\,°C cells, a cut cable, a software hang) repeatably and from scripts.
+  \item Evidence for the method: the HIL bench found three design flaws that the earlier model-, software- and processor-in-the-loop stages had not found.
+  \item A model grounded in measured data: the open-circuit voltage, the resistances, their temperature dependence and the ageing relation are fitted to public measurements of the M50T cell, and the parameters that are still assumed are listed explicitly.
+  \item A remote-monitoring path to a web dashboard, with measured link quality.
+\end{enumerate}
+
+\section{Structure of the thesis}
+\Cref{ch:background} summarises the background and the related HIL literature. \Cref{ch:design} describes the hardware, the software structure and the CAN design. \Cref{ch:models} identifies and validates the cell model. \Cref{ch:estimation} presents the estimators and \cref{ch:decision} the decision layer and the stress index. \Cref{ch:verification} reports the verification results, \cref{ch:safety} the safety analysis and \cref{ch:monitoring} the remote monitoring. \Cref{ch:discussion} discusses the results and their limits, and \cref{ch:conclusion} concludes.

@@ -1,0 +1,22 @@
+\chapter{Hardware setup}\label{ch:hardware}
+
+\Cref{tab:hw} lists the bench. The BMS and the twin run on separate boards and share only the CAN bus, so the BMS sees the same kind of data it would get from a real pack.
+
+\begin{table}[htbp]\centering\small
+\caption{Hardware of the test bench.}\label{tab:hw}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.34\linewidth}>{\raggedright\arraybackslash}X@{}}\toprule
+Component & Role \\\midrule
+STM32 NUCLEO-G431RB (Cortex-M4F, 170\,MHz) & BMS controller; floating-point unit, CAN controller, watchdog \citep{rm0440} \\
+Arduino Uno + MCP2515 & Digital twin of the pack; CAN controller over SPI \\
+2 $\times$ TJA1050 & CAN transceivers, 500\,kbit/s \citep{tja1050} \\
+LM35 & Ambient temperature for the twin \\
+Push buttons, potentiometer & Fault scenarios and their severity \\
+I$^2$C LCD & Local display of state, SOC and allowed current \\
+LEDs via ULN2003, relay & ``Headlights'' showing the allowed current; relay as main contactor \\
+PC & Gateway to the cloud server \\\bottomrule
+\end{tabularx}
+\end{table}
+
+\todo{bench photo}
+
+The BMS firmware is written in C at register level without a vendor library. One control step takes at most 92\,\textmu s, less than 0.1\,\% of the 100\,ms period. The relay is held closed only while the BMS actively drives it, so a crash or power loss disconnects the pack. A watchdog resets a hung controller, and a checksum of the firmware is verified at every start.
