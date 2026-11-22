@@ -17,6 +17,8 @@ PC & Gateway to the cloud server \\\bottomrule
 \end{tabularx}
 \end{table}
 
-\todo{bench photo}
+\Cref{fig:bench} shows the bench. The STM32 board (top left) and the Arduino Uno with its MCP2515 CAN module (top right) are joined by the CAN transceivers on the centre breadboard. The yellow LED bar shows the allowed current, the LCD shows the twin's core, surface and ambient temperatures, and the buttons and potentiometer on the right inject faults.
+
+\fig{bench_photo}{0.85}{The test bench.}{fig:bench}
 
 The BMS firmware is written in C at register level without a vendor library. One control step takes at most 92\,\textmu s, less than 0.1\,\% of the 100\,ms period. The relay is held closed only while the BMS actively drives it, so a crash or power loss disconnects the pack. A watchdog resets a hung controller, and a checksum of the firmware is verified at every start.
