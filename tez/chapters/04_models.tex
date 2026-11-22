@@ -28,5 +28,3 @@ so a cell at the usual end of life, SOH = 80\,\%, has 26\,\% more resistance (\c
 
 \section{Cross-validation of the model implementations}
 The model exists in Python (reference), Simulink, and C (twin and Monte Carlo). All four were run on the same input; the Simulink and Python pack voltages agree to $3\times10^{-11}$\,mV, and the C twin matches the Python model within float32 rounding. Keeping the implementations identical is what makes the later comparison between offline and on-target results meaningful.
-
-\fig{twin_crossvalidation}{0.8}{Cross-validation of the twin implementations.}{fig:xval}

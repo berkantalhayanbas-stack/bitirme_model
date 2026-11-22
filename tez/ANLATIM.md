@@ -265,7 +265,11 @@ Tez metninde turuncu `[TODO: ...]` notları var (13 tane). En önemlileri:
 ## Derleme
 
 - **Overleaf:** `python make_overleaf_zip.py` → `build/tez_overleaf.zip` → Overleaf'te New Project > Upload Project. Derleyici: pdfLaTeX.
-- Bilgisayarda LaTeX kuruluysa: `latexmk -pdf main.tex` (figürler `../results/` klasöründen okunur).
+- Bilgisayarda (MiKTeX, `tez/` klasöründe; figürler `../results/` klasöründen okunur, PDF `build/main.pdf`):
+  1. `pdflatex -output-directory=build main.tex`
+  2. `cd build` ve `set BIBINPUTS=..` (Git Bash'te `BIBINPUTS=.. bibtex main`), sonra `bibtex main`
+  3. `cd ..` ve `pdflatex -output-directory=build main.tex` komutunu iki kez daha çalıştır.
+  Kaynakça değişmediyse yalnız 3. adım yeter.
 
 ---
 

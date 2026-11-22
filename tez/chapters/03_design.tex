@@ -11,7 +11,7 @@ Every 100\,ms the twin advances its pack model, adds sensor noise and sends the 
 
 \begin{table}[htbp]\centering\small
 \caption{Bench components and their role.}\label{tab:hw}
-\begin{tabularx}{\linewidth}{@{}lX@{}}\toprule
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.36\linewidth}>{\raggedright\arraybackslash}X@{}}\toprule
 Part & Role \\\midrule
 NUCLEO-G431RB (STM32G431, Cortex-M4F, 170\,MHz) & The ECU \citep{rm0440,ds12589}. Single-precision FPU for the filters, on-chip FDCAN, CORDIC unit, independent watchdog and CRC unit. \\
 Arduino Uno + MCP2515 & The plant: pack twin and vehicle model. The MCP2515 is the CAN controller the Uno lacks. \\
