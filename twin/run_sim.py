@@ -125,5 +125,5 @@ lines = [
 for k, r in results.items():
     lines.append(f"{k}: " + ", ".join(f"{a}={b:.3f}" for a, b in r.items()))
 txt = "\n".join(lines)
-open(os.path.join(OUT, "summary.txt"), "w").write(txt)
+open(os.path.join(OUT, "summary.txt"), "w", encoding="utf-8").write(txt)
 print(txt)

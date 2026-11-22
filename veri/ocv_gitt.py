@@ -1,7 +1,7 @@
 """OCV tablosu adayları ve GITT'e karşı çapraz doğrulama (LG M50T, Kirkaldy et al. 2024, BoL, 25 °C).
 
 Adaylar (modelin 23 noktalı SOC ızgarasında):
-  chen   : Chen vd. (2020), LG M50 (şimdiki model)
+  chen   : Chen vd. (2020), LG M50 (2026-11-18 öncesi model; battery_model.OCV_CHEN2020)
   c10    : C/10 şarj/deşarj ortalaması (ocv_kirkaldy.py)
   gitt   : GITT dinlenme sonu gerilimleri (deşarj kolu, ~gerçek OCV), hücre A-D'den
   karma  : gitt noktaları + aralarında c10 eğrisinin şekli (gitt'e kaydırılmış)
@@ -17,7 +17,7 @@ import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "twin"))
-from battery_model import CellParams
+from battery_model import CellParams, OCV_CHEN2020, OCV_CHEN2020_SOC
 
 cp = CellParams()
 SOC = cp.soc_tab
@@ -60,7 +60,7 @@ c10 = pd.read_csv(os.path.join(HERE, "ocv_kirkaldy.csv")).ocv_kirkaldy.values
 # karma: c10 şekli, gitt noktalarına göre kaydırma (kaydırma gitt aralığında yumuşak)
 off = np.interp(SOC, gx.s.values, gx.v.values - np.interp(gx.s.values, SOC, c10))
 karma = c10 + off
-TAB = {"chen": cp.ocv_tab, "c10": c10, "gitt": ocv_gitt, "karma": karma}
+TAB = {"chen": np.interp(SOC, OCV_CHEN2020_SOC, OCV_CHEN2020), "c10": c10, "gitt": ocv_gitt, "karma": karma}
 pd.DataFrame({"soc": SOC, **TAB}).to_csv(os.path.join(HERE, "ocv_tablolari.csv"), index=False)
 print(f"gitt OCV noktalari: {len(P)} (hucre A-D), SOC araligi {P[:, 0].min():.3f}..{P[:, 0].max():.3f}")
 

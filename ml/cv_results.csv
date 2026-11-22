@@ -1,23 +1,23 @@
 Split,Model,Features,RMSE,MaxErr
-Leave-one-cell-out,Physics model,Usage (physics),3.0275044330439385,10.654978514043655
-Leave-one-cell-out,Linear,Usage only,3.756580956534066,8.591295371829698
-Leave-one-cell-out,Linear,R only,3.7958966901885307,25.83353999400092
-Leave-one-cell-out,Linear,Usage + R,2.877678420528999,16.213512618680404
-Leave-one-cell-out,Tree (depth 3),Usage only,3.2785760714760803,9.426314325856023
+Leave-one-cell-out,Physics model,Usage (physics),3.0275046217134456,10.654978386447834
+Leave-one-cell-out,Linear,Usage only,3.7565809565340653,8.591295371829698
+Leave-one-cell-out,Linear,R only,3.79589669018853,25.83353999400092
+Leave-one-cell-out,Linear,Usage + R,2.8776784205290005,16.213512618680394
+Leave-one-cell-out,Tree (depth 3),Usage only,3.2785760714760794,9.426314325856023
 Leave-one-cell-out,Tree (depth 3),R only,2.676854024502915,13.675293243546038
 Leave-one-cell-out,Tree (depth 3),Usage + R,2.5728304770635377,11.322867951377713
 Leave-one-cell-out,Gradient boosting,Usage only,2.8130682558273734,9.06623546441111
 Leave-one-cell-out,Gradient boosting,R only,2.6188316132626075,13.749617225860566
-Leave-one-cell-out,Gradient boosting,Usage + R,1.9305554822902589,13.048603490060994
-Leave-one-cell-out,Hybrid: physics + tree,Usage + R,2.384903425486192,12.241015597848548
-Leave-one-condition-out,Physics model,Usage (physics),4.061782608706866,12.193742192043421
-Leave-one-condition-out,Linear,Usage only,4.517828821222105,9.318426697093308
-Leave-one-condition-out,Linear,R only,4.017472438072447,28.259702813829023
-Leave-one-condition-out,Linear,Usage + R,3.4047272683552463,16.807864011902616
+Leave-one-cell-out,Gradient boosting,Usage + R,1.9307645468317198,13.048603490060994
+Leave-one-cell-out,Hybrid: physics + tree,Usage + R,2.384903500150206,12.241015451685367
+Leave-one-condition-out,Physics model,Usage (physics),4.061780408474869,12.193742135003893
+Leave-one-condition-out,Linear,Usage only,4.517828821222103,9.318426697093296
+Leave-one-condition-out,Linear,R only,4.0174724380724465,28.259702813829023
+Leave-one-condition-out,Linear,Usage + R,3.404727268355243,16.807864011902616
 Leave-one-condition-out,Tree (depth 3),Usage only,4.04815188211221,13.41527886159094
-Leave-one-condition-out,Tree (depth 3),R only,3.0845424159646107,15.767986228635134
-Leave-one-condition-out,Tree (depth 3),Usage + R,2.929610588138876,11.322867951377713
-Leave-one-condition-out,Gradient boosting,Usage only,4.525270382317645,13.551210678367875
-Leave-one-condition-out,Gradient boosting,R only,2.9969098669809155,14.437267686651223
-Leave-one-condition-out,Gradient boosting,Usage + R,2.8410754842065935,12.559087229833565
-Leave-one-condition-out,Hybrid: physics + tree,Usage + R,3.602675456901901,13.51271941810559
+Leave-one-condition-out,Tree (depth 3),R only,3.084542415964611,15.767986228635134
+Leave-one-condition-out,Tree (depth 3),Usage + R,2.9296105881388756,11.322867951377713
+Leave-one-condition-out,Gradient boosting,Usage only,4.525270382317644,13.551210678367875
+Leave-one-condition-out,Gradient boosting,R only,2.9969098669809164,14.437267686651223
+Leave-one-condition-out,Gradient boosting,Usage + R,2.8410842783310613,12.559087229833576
+Leave-one-condition-out,Hybrid: physics + tree,Usage + R,3.6026754089383135,13.51271936749663

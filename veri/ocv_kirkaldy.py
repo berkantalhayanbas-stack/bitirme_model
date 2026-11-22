@@ -14,7 +14,7 @@ import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "twin"))
-from battery_model import CellParams
+from battery_model import CellParams, OCV_CHEN2020, OCV_CHEN2020_SOC
 
 cp = CellParams()
 grid = np.linspace(0, 1, 201)
@@ -30,15 +30,15 @@ for kind, tag in (("c", "charge"), ("d", "discharge")):
 vc, vd = np.median(V["c"], axis=0), np.median(V["d"], axis=0)
 ocv = 0.5 * (vc + vd)
 half = 0.5 * (vc - vd)
-chen = np.interp(grid, cp.soc_tab, cp.ocv_tab)
+chen = np.interp(grid, OCV_CHEN2020_SOC, OCV_CHEN2020)
 m = (grid >= 0.05) & (grid <= 0.95)
 print(f"hucre sayisi: sarj {len(V['c'])}, desarj {len(V['d'])}")
 print(f"Kirkaldy sozde-OCV - Chen 2020: ortalama {1e3 * np.mean(ocv[m] - chen[m]):+.1f} mV, "
       f"RMS {1e3 * np.sqrt(np.mean((ocv[m] - chen[m]) ** 2)):.1f} mV, en buyuk {1e3 * np.max(np.abs(ocv[m] - chen[m])):.1f} mV (SOC 5-95 %)")
 print(f"yari fark (IR + histerezis) SOC 20-80 %: medyan {1e3 * np.median(half[(grid > .2) & (grid < .8)]):.1f} mV")
 tab = np.interp(cp.soc_tab, grid, ocv)
-pd.DataFrame({"soc": cp.soc_tab, "ocv_kirkaldy": tab, "ocv_chen2020": cp.ocv_tab,
-              "fark_mV": 1e3 * (tab - cp.ocv_tab)}).to_csv(os.path.join(HERE, "ocv_kirkaldy.csv"), index=False)
+pd.DataFrame({"soc": cp.soc_tab, "ocv_kirkaldy": tab, "ocv_chen2020": np.interp(cp.soc_tab, OCV_CHEN2020_SOC, OCV_CHEN2020),
+              "fark_mV": 1e3 * (tab - np.interp(cp.soc_tab, OCV_CHEN2020_SOC, OCV_CHEN2020))}).to_csv(os.path.join(HERE, "ocv_kirkaldy.csv"), index=False)
 print(pd.read_csv(os.path.join(HERE, "ocv_kirkaldy.csv")).round(4).to_string(index=False))
 try:
     import matplotlib
@@ -51,7 +51,7 @@ try:
     ax[0].plot(grid, vc, "C1", lw=0.8, label="C/10 charge (median, 8 cells)")
     ax[0].plot(grid, vd, "C0", lw=0.8, label="C/10 discharge")
     ax[0].plot(grid, ocv, "k", lw=1.2, label="pseudo-OCV (mean)")
-    ax[0].plot(cp.soc_tab, cp.ocv_tab, "o", ms=3, color="C2", label="Chen et al. 2020 (LG M50)")
+    ax[0].plot(OCV_CHEN2020_SOC, OCV_CHEN2020, "o", ms=3, color="C2", label="Chen et al. 2020 (LG M50)")
     ax[0].set_ylabel("V"); ax[0].legend(fontsize=8)
     ax[1].plot(grid, 1e3 * (ocv - chen), "k", label="pseudo-OCV - Chen 2020")
     ax[1].plot(grid, 1e3 * half, "C2", label="half gap (IR + hysteresis)")

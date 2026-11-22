@@ -23,6 +23,12 @@ R_GAS = 8.314  # J/(mol K)
 # Yaşlanma: direnç oranı = 1 + AGE_BETA (1 - SOH); Kirkaldy vd. (2024) 40 hücre, 224 RPT
 # (veri/age_resistance.py). bms_ecu twin_model.h TW_AGE_BETA ve simulink P.age_beta ile aynı.
 AGE_BETA = 1.31
+# Karşılaştırma referansı (modelde kullanılmaz): Chen vd. (2020) LG M50 OCV, 2026-11-18'e kadar modelin
+# tablosuydu (commit 67129ef öncesi). veri/ocv_kirkaldy.py ve veri/ocv_gitt.py bununla karşılaştırır.
+OCV_CHEN2020_SOC = np.array([0.0, 0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65,
+                             0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.98, 1.0])
+OCV_CHEN2020 = np.array([2.4977, 2.8373, 3.0726, 3.2574, 3.3956, 3.4487, 3.4934, 3.5473, 3.5959, 3.6329, 3.6664,
+                         3.7051, 3.7538, 3.8055, 3.859, 3.9203, 3.9671, 4.0165, 4.0658, 4.0927, 4.111, 4.1458, 4.1809])
 
 
 def arrhenius(ea, t_c):
