@@ -102,6 +102,7 @@ else
     IKC   = eye(5) - K * C;
     Pk    = IKC * Pp * IKC' + P.ekf_R * (K * K');   % Joseph formu
 end
+x(1) = min(max(x(1), 0), 1);   % SOC [0, 1]: boş pakette yeniden başlatmada sıfırın altına itiliyordu (bms_algo.c)
 rejected = double(rej);
 
 % açılış sıfır akım kalibrasyonu (A9): karar ilk dec_t_zero s I_allow = 0 tutar (kontaktör açık);

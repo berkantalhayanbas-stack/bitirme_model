@@ -136,8 +136,11 @@ class PackEKF:
         self.n_rej = self.n_rej + 1 if self.rejected else 0
         if self.rejected:
             self.x, self.P = xp, P
+            self.x[0] = min(1.0, max(0.0, self.x[0]))   # SOC fiziksel aralıkta (bms_algo.c ile aynı)
             return self.x.copy(), innov
         self.x = xp + K * innov
+        # SOC [0, 1]: boş pakette yeniden başlatmada filtre SOC'yi sıfırın altına itiyordu (kart, -%20,7)
+        self.x[0] = min(1.0, max(0.0, self.x[0]))
         if self.nr:
             self.x[4] = np.clip(self.x[4], *self.kr_lim)
         I_KC = np.eye(len(x)) - np.outer(K, C)
