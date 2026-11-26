@@ -8,6 +8,6 @@ Voltage window,OV 4.25 V / UV 2.5 V per cell,"full 79.8 V, cut-off 47.5 V (19S)"
 Motor demand,aggressive drive cycle,3000 W / ~72 V = ~42 A (0.72C) rated,within limits
 Pack voltage at rest,-,71.9 V direct (+-0.56 V); sum of groups 71.63 V,consistent
 Group voltage spread,initial SOC spread -1.0..+1.2 % = 24 mV,20 mV (3.76..3.78 V; true 10-30 mV),yes (same magnitude)
-SOC from OCV,-,55.1 / 56.0 / 56.9 % (mean 56.0 %),-
+SOC from OCV,-,55.1 (group 17) / 56.0 / 56.9 (group 19) % (mean 56.0 %),-
 OCV slope at this SOC,-,10.8 mV per % SOC,-
 Meter accuracy (20 V range),-,"+-39 mV absolute, 10 mV resolution",limits relative comparison
