@@ -1,0 +1,13 @@
+quantity,twin_firmware,real_pack,match
+Cell,LG INR21700 M50T (4.85 Ah min),"LG INR21700 M50 family (label LGG8M5021700, no 'T')",yes (same rating)
+Configuration,19S12P (228 cells),19S12P (count + 19 balance leads),yes
+Group capacity,58.2 Ah (12 x 4.85 Ah),"58.2 Ah min, ~60 Ah typical",yes (twin conservative)
+Discharge limit,87.3 A (1.5C),datasheet 12 x 7.275 A = 87.3 A,yes
+Charge limit,40.7 A (0.7C); 17.46 A below 10 C,"datasheet, same",yes
+Voltage window,OV 4.25 V / UV 2.5 V per cell,"full 79.8 V, cut-off 47.5 V (19S)",yes
+Motor demand,aggressive drive cycle,3000 W / ~72 V = ~42 A (0.72C) rated,within limits
+Pack voltage at rest,-,71.9 V direct (+-0.56 V); sum of groups 71.63 V,consistent
+Group voltage spread,initial SOC spread -1.0..+1.2 % = 24 mV,20 mV (3.76..3.78 V; true 10-30 mV),yes (same magnitude)
+SOC from OCV,-,55.1 / 56.0 / 56.9 % (mean 56.0 %),-
+OCV slope at this SOC,-,10.8 mV per % SOC,-
+Meter accuracy (20 V range),-,"+-39 mV absolute, 10 mV resolution",limits relative comparison
