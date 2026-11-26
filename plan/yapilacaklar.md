@@ -1,4 +1,4 @@
-# Bitirme: yapılacaklar ve alınacaklar (2026-11-19, güncelleme 2026-11-22)
+# Bitirme: yapılacaklar ve alınacaklar (2026-11-19, güncelleme 2026-11-26)
 
 ## Güncelleme 21-22 Kasım (yapılanlar)
 - Termal anomali dedektörü (adyabatik zarf): gizli ısı -> kilitli LIMP; MC dış ısı 151/151, medyan 8 s.
@@ -13,18 +13,28 @@
   18 046 satır, kayıp %0, RTT p50 102 ms).
 - Literatür: docs/stress_criteria_review.md (5 aday kriter; gelecek çalışma, uygulanmadı).
 
+## Güncelleme 25-26 Kasım (yapılanlar)
+- Kapasite SOH'u (iPhone tarzı, park-park arası öğrenme, flash'ta kalıcı), panelde "Battery health"; kartta doğrulandı.
+- Stres indeksi yeniden tasarımı (kullanıcı kararı, dondurmanın istisnası): Ψ = 1 - Π(1 - Ψ_i), altı kriter
+  T, C, Tdot, H (kapasite SOH + k_R), A (yaşlanma hızı: hibrit fizik x exp(r(T)), LOCO %3,52), B (dengesizlik).
+  Python 23/23, MATLAB = Python, C = Python, MC kart 1000/1000 (PC ile hüküm 1000/1000 aynı), PIL 3/3,
+  kart senaryoları (mod 5/5, gizli arıza 6/6, aşırı ısınma). Tasarım ve sapmalar: bms_ecu/docs/stress_design.md.
+- EKF SOC [0, 1] kırpması (boş pakette yeniden başlatmada -%41'e iniyordu); twin_emu boş pakette park eder.
+- Gerçek paket ölçümü (19S12P LG M50, multimetre) ve ikizle karşılaştırma: results/real_pack_*.
+- Tezgâh: Uno'nun D11 (MOSI) pini hasarlı -> twin_emu yazılımla SPI, MOSI D9 (docs/bench_wiring.md).
+
 ## Karar (22 Kasım): özellik dondurma
 Lisans düzeyi için veri ve ölçüm yeterli; yeni özellik eklenmiyor. ESP iptal, uzaktan izleme PC gateway'iyle.
 Kalan iş: doğrulamayı son koda göre kapatmak, sonuçları tek geçişte yenilemek, tezi yazmak.
 Aşağıdaki listede 2, 3, 6 ve literatürdeki adaylar tezde "sınırlamalar / gelecek çalışma" olarak yazılır.
 
 ## Açık işler (22 Kasım itibarıyla, öncelik sırasıyla)
-1. [ ] Kartta MC 1000 koşu son ECU koduyla (EKF k_R dondurma, f803a97); yalnız PC'de koşuldu.
+1. [x] Kartta MC 1000 koşu son ECU koduyla: 1000/1000, PC ile aynı (26 Kasım, yeni stres indeksiyle).
 2. [ ] EKF'yi açılışta dinlenme OCV'sinden başlat (şu an %50): A1'deki gözlemci sapmasının ve k_R
        sıçramasının ortak kökü olabilir.
-3. [ ] SOH göstergesi hep %100 (rint kestiricisi yumuşak çevrimde örnek almıyor): tezde sınırlama ya da
+3. [x] (25 Kasım: kapasite SOH'u ile çözüldü) SOH göstergesi hep %100 (rint kestiricisi yumuşak çevrimde örnek almıyor): tezde sınırlama ya da
        k_R'den SOH; kalıcı bellek gerekir. Şimdilik bekliyor (kullanıcı kararı).
-4. [ ] Panel: Ψ_H'nin "yalnız gösterge" olduğunu yaz (index.html başka oturumda değişmiş, commit'siz).
+4. [x] Panel: hangi kriterin gücü kıstığı yazıyor (26 Kasım). Kalan: config.php + index.html hosting'e yüklenecek (kullanıcı).
 5. [-] ESP Wi-Fi gateway: iptal (22 Kasım), PC gateway kullanılıyor.
 6. [ ] Aşağıdaki eski açıklar: A7 (b_I kayması), A8 (T hız teşhisi gürültü), 4, 5, 6; B7-B12; C14-C17.
 7. [ ] En sonda tek geçişte eski sonuçları yeniden üret (OCV değişimi öncesi figürler; scipy/sklearn kur).
