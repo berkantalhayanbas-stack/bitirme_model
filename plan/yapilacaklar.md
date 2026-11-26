@@ -37,7 +37,7 @@ Aşağıdaki listede 2, 3, 6 ve literatürdeki adaylar tezde "sınırlamalar / g
 4. [x] Panel: hangi kriterin gücü kıstığı yazıyor (26 Kasım). Kalan: config.php + index.html hosting'e yüklenecek (kullanıcı).
 5. [-] ESP Wi-Fi gateway: iptal (22 Kasım), PC gateway kullanılıyor.
 6. [ ] Aşağıdaki eski açıklar: A7 (b_I kayması), A8 (T hız teşhisi gürültü), 4, 5, 6; B7-B12; C14-C17.
-7. [ ] En sonda tek geçişte eski sonuçları yeniden üret (OCV değişimi öncesi figürler; scipy/sklearn kur).
+7. [x] Eski sonuçların yeniden üretimi: 22 Kasım (OCV), 26 Kasım (yeni stres indeksi + SOC kırpması; sensitivity, bias_sweep, thermal_anomaly, soh_learning, stress_index_drive).
 8. [ ] Tez yazımı (~2 Aralık), sunum, jüri provası.
 
 

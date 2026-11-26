@@ -1,8 +1,9 @@
 """
-Çok kriterli stres indeksi Ψ: tez figürü (Python ikizi + karar mekanizması, kapalı çevrim).
+Stres indeksi Ψ = 1 - Π(1 - Ψ_i): tez figürü (Python ikizi + karar mekanizması, kapalı çevrim).
+Altı kriter (2026-11-26): T, C, Tdot gücü kısar (Ψ_P); A yaşlanma hızı şarjı kısar; H ve B gösterge.
 
 (a) Yaşlanmış paket (R0, R1, R2 x1,4), 40 °C ortam, soğutma bozuk (R_u x4), agresif sürüş (x1,6):
-    baskın kriter zamanla değişir: direnç (H) -> soğutma (C) -> çekirdek sıcaklığı (T).
+    baskın kriter zamanla değişir (sağlık H, yaşlanma hızı A, soğutma C, çekirdek sıcaklığı T).
 (b) Nominal paket, 600. s'de modellenmemiş dış ısı (twin_emu A2 butonu, 0,5 °C/s): sıcaklık artış
     hızı kriteri (Tdot) çekirdek kestirimi 45 °C'ye varmadan kısar; sonra anomali LIMP ve SAFE.
 Çıktı: ../results/stress_index_drive.png (+ .csv, figürdeki seriler). Etiketler İngilizce.
@@ -38,7 +39,8 @@ B["I_dem"] = I_std[:9000]
 B = B[(B.t >= 540) & (B.t <= 700)].reset_index(drop=True)
 
 CRIT = [("psi_T", "Ψ_T core temperature", ts.BLUE), ("psi_C", "Ψ_C cooling alarm", ts.ORANGE),
-        ("psi_D", "Ψ_Tdot temperature-rise rate", ts.AQUA), ("psi_H", "Ψ_H resistance growth (k_R)", ts.YELLOW)]
+        ("psi_D", "Ψ_Tdot temperature-rise rate", ts.AQUA), ("psi_H", "Ψ_H battery health (display)", ts.YELLOW),
+        ("psi_A", "Ψ_A ageing rate", ts.MAGENTA), ("psi_B", "Ψ_B cell imbalance (display)", ts.GREEN)]
 
 fig, ax = plt.subplots(3, 2, figsize=(12.5, 7.6), sharex="col",
                        gridspec_kw=dict(width_ratios=[1.6, 1], height_ratios=[1, 1.25, 1], hspace=0.12, wspace=0.18))
@@ -59,8 +61,10 @@ for c, (d, title) in enumerate(((A, "(a) aged pack (SOH 80 %: Q x0.8, R x1.26), 
     a = ax[1, c]
     for k, lab, col in CRIT:
         a.plot(t, d[k], color=col, lw=1.2, label=lab)
-    a.plot(t, d.psi_s, color=ts.INK, lw=2.0, label="Ψ (κ = 0.25)")
-    a.set_ylim(-0.03, 1.14)
+    a.plot(t, d.psi_s, color=ts.INK, lw=2.0, label="Ψ = 1 − Π(1 − Ψ_i)")
+    a.plot(t, d.psi_p, color=ts.INK, lw=1.2, ls="--", label="Ψ_P (limits power)")
+    a.set_ylim(-0.03, 1.62 if c == 0 else 1.14)   # (a): gösterge için üstte boşluk
+    a.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
     a.set_ylabel("stress index [-]")
     # baskın kriter: üstte ince renkli şerit (kriterin rengiyle)
     dom = d.dom.values.astype(int)
@@ -73,7 +77,7 @@ for c, (d, title) in enumerate(((A, "(a) aged pack (SOH 80 %: Q x0.8, R x1.26), 
     a.annotate("dominant criterion", (0, 1.09), xycoords=("axes fraction", "data"), xytext=(-4, 0),
                textcoords="offset points", ha="right", va="center", fontsize=7, color=ts.INK2)
     if c == 0:
-        a.legend(loc="upper left", ncol=2, bbox_to_anchor=(0, 0.93))
+        a.legend(loc="upper left", ncol=3, bbox_to_anchor=(0, 1.0), fontsize=7.5)
     else:
         k_d = int(np.argmax(d.psi_D.values > 0)); k_t = int(np.argmax(d.psi_T.values > 0))
         ts.ref_line(a, x=t[k_d])
@@ -91,18 +95,19 @@ for c, (d, title) in enumerate(((A, "(a) aged pack (SOH 80 %: Q x0.8, R x1.26), 
     a.set_xlabel("time [s]")
     a.legend(loc="lower left", ncol=3 if c == 0 else 1, fontsize=7.5)
 
-fig.suptitle("Multi-criteria stress index Ψ in closed loop (Python digital twin + decision logic)",
+fig.suptitle("Battery stress index Ψ (combined load of all conditions) in closed loop (Python digital twin + decision logic)",
              x=0.01, ha="left", fontsize=11, fontweight="bold")
 out = os.path.join(RES, "stress_index_drive.png")
 ts.save(fig, out)
-cols = ["t", "tc", "tc_hat", "tm", "psi_T", "psi_C", "psi_D", "psi_H", "psi_s", "dom", "tdot", "kr", "state", "i_dis", "I_dem"]
+cols = ["t", "tc", "tc_hat", "tm", "psi_T", "psi_C", "psi_D", "psi_H", "psi_A", "psi_B", "psi_s", "psi_p", "dom",
+        "tdot", "kr", "state", "i_dis", "I_dem"]
 pd.concat([A[cols].assign(case="a_aged_hot_cooling"), B[cols].assign(case="b_external_heat")]).to_csv(
     os.path.join(RES, "stress_index_drive.csv"), index=False, float_format="%.4g")
 # rapor için sayılar
 dA = A.dom.values.astype(int)
-share = {DOM_NAMES[k]: 100 * np.mean(dA == k) for k in range(5)}
+share = {DOM_NAMES[k]: 100 * np.mean(dA == k) for k in range(7)}
 print("(a) dominant share %:", {k: round(v, 1) for k, v in share.items() if v > 0},
-      f"| Psi max {A.psi_s.max():.2f}, T_core max {A.tc.max():.1f} °C, states {sorted(set(A.state.astype(int)))}")
+      f"| Psi max {A.psi_s.max():.2f}, Psi_P max {A.psi_p.max():.2f}, T_core max {A.tc.max():.1f} °C, states {sorted(set(A.state.astype(int)))}")
 print(f"(b) Psi_Tdot > 0 at +{B.t[np.argmax(B.psi_D.values > 0)] - 600:.1f} s, Psi_T > 0 at "
       f"+{B.t[np.argmax(B.psi_T.values > 0)] - 600:.1f} s, LIMP at +{B.t[np.argmax(B.state.values >= 3)] - 600:.1f} s, "
       f"SAFE at +{B.t[np.argmax(B.state.values == 4)] - 600:.1f} s")
