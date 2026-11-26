@@ -1,0 +1,25 @@
+[   0.1 s] ECU sifirlandi, senaryo basliyor
+[   0.7 s]    ECU: ----   izin   0.0 A | neden: sert sinir | Tc^ 27.9 C
+[   1.8 s]    ECU: DERATE izin   0.0 A | neden: sarj gerilim payi | Tc^ 25.2 C
+[   3.8 s]    ECU: ----   izin  12.0 A | neden: sarj gerilim payi | Tc^ 25.2 C
+[   4.8 s]    ECU: DERATE izin   0.0 A | neden: sarj gerilim payi | Tc^ 25.1 C
+[   6.4 s] ECU temiz başlasın (Uno COM açılışında ~2 s susar)
+[   8.8 s]    ECU: DERATE izin  34.0 A | neden: - | Tc^ 24.7 C
+[  18.8 s]    ECU: NORMAL izin  87.3 A | neden: - | Tc^ 25.1 C
+[  19.9 s] Araç hazır sürüş çevrimini sürüyor
+[  40.0 s] ===== A2 Asiri isinma =====
+[  42.0 s] STOP uzun basis: paket isinmaya basladi (0,5 C/s)
+[  49.7 s]    ECU: DERATE izin  84.3 A | neden: sicaklik | Tc^ 26.4 C
+[  50.8 s]    ECU: LIMP   izin  21.8 A | neden: sicaklik | Tc^ 30.4 C
+[  50.9 s] ECU aciklanamayan isinmayi fark etti (termal anomali): LIMP-HOME, izin %25  (9 s sonra)
+[  84.8 s]    ECU: LIMP   izin  21.8 A | neden: sicaklik, veri sayfasi sicaklik siniri | Tc^ 47.4 C
+[ 111.7 s]    ECU: SAFE   izin   0.0 A | neden: sert sinir | Tc^ 60.3 C
+[ 111.7 s] 60 C: SAFE-STOP, kontaktor acik, far sonuk  (61 s sonra)
+[ 114.7 s] STOP uzun basis: isi kaynagi kalkti, paket soguyor
+[ 141.7 s] Paket sogudu (ikiz ortam + 2 °C'ye soğur; LM35 ~38 °C okuyor)  (27 s sonra)
+[ 142.7 s]    ECU: ----   izin   0.0 A | neden: sert sinir | Tc^ 45.9 C
+[ 143.7 s]    ECU: NORMAL izin   0.0 A | neden: - | Tc^ 41.3 C
+[ 145.1 s] Servis: ECU yeniden baslatildi
+[ 145.3 s] ECU NORMAL  (0 s sonra)
+[ 147.3 s] bitti -> build\demo_isinma.csv
+[ 148.9 s] grafik -> build\demo_isinma.png

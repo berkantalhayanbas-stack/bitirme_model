@@ -1,0 +1,63 @@
+[   0.1 s] ECU sifirlandi, senaryo basliyor
+[   0.1 s] ===== Hazirlik =====
+[   0.8 s]    ECU: ----   izin   0.0 A | neden: sert sinir | Tc^ 27.6 C
+[   1.8 s]    ECU: DERATE izin   0.0 A | neden: sarj gerilim payi | Tc^ 25.2 C
+[   3.2 s] Ortam 25 C (oda sicakligindan bagimsiz)
+[   3.3 s] Ariza siddeti varsayilan (R_u x4, 0,5 C/s): A0 potundan bagimsiz
+[   3.4 s] NORMAL butonu: servis (paket 25-35 C, ECU yeniden baslar, surus)
+[   6.8 s]    ECU: ----   izin  39.0 A | neden: sarj gerilim payi | Tc^ 30.6 C
+[   7.8 s]    ECU: DERATE izin   0.0 A | neden: sarj gerilim payi | Tc^ 26.9 C
+[  13.7 s]    ECU: DERATE izin  57.0 A | neden: - | Tc^ 27.1 C
+[  22.8 s]    ECU: NORMAL izin  87.3 A | neden: - | Tc^ 27.1 C
+[  22.8 s] ECU NORMAL  (19 s sonra)
+[  22.8 s] ===== DERATE uzun basis: sogutma arizasi =====
+[  22.9 s] DERATE uzun basis: sogutma arizasi (ECU'ya haber verilmedi)
+[  74.8 s]    ECU: DERATE izin  87.3 A | neden: sarj gerilim payi | Tc^ 27.3 C
+[  76.7 s]    ECU: DERATE izin  87.3 A | neden: - | Tc^ 27.3 C
+[  86.7 s]    ECU: NORMAL izin  87.3 A | neden: - | Tc^ 27.3 C
+[ 127.7 s]    ECU: DERATE izin  61.1 A | neden: sogutma alarmi | Tc^ 27.4 C
+[ 127.8 s] ECU arizayi kendi kestiriminden buldu: izin %70 (>= 120 s; 25 C soguk pakette ~490 s)  (105 s sonra)
+[ 137.9 s] DERATE uzun basis: sogutma onarildi
+[ 138.7 s]    ECU: ----   izin  61.1 A | neden: sogutma alarmi | Tc^ 27.4 C
+[ 139.8 s]    ECU: NORMAL izin   0.0 A | neden: - | Tc^ 27.3 C
+[ 141.2 s] (ECU yeniden baslatildi: alarm temizlendi)
+[ 141.4 s] ECU NORMAL  (0 s sonra)
+[ 141.4 s] ===== STOP uzun basis: asiri isinma =====
+[ 143.5 s] STOP uzun basis: paket isinmaya basladi (0,5 C/s)
+[ 151.7 s]    ECU: LIMP   izin  21.8 A | neden: sicaklik | Tc^ 31.6 C
+[ 151.7 s] ECU aciklanamayan isinmayi fark etti (termal anomali): LIMP-HOME, izin %25  (8 s sonra)
+[ 181.7 s]    ECU: LIMP   izin  21.8 A | neden: sicaklik, veri sayfasi sicaklik siniri | Tc^ 47.1 C
+[ 208.7 s]    ECU: SAFE   izin   0.0 A | neden: sert sinir | Tc^ 60.2 C
+[ 208.7 s] 60 C: SAFE-STOP, kontaktor acik, far sonuk  (57 s sonra)
+[ 211.8 s] STOP uzun basis: isi kaynagi kalkti, paket soguyor
+[ 238.8 s] Paket sogudu (ikiz ortam + 2 °C'ye soğur; LM35 ~38 °C okuyor)  (27 s sonra)
+[ 239.7 s]    ECU: ----   izin   0.0 A | neden: sert sinir | Tc^ 45.7 C
+[ 240.7 s]    ECU: NORMAL izin   0.0 A | neden: - | Tc^ 41.5 C
+[ 242.2 s] Servis: ECU yeniden baslatildi
+[ 242.4 s] ECU NORMAL  (0 s sonra)
+[ 242.4 s] ===== LIMP: sensor koptu =====
+[ 244.4 s] LIMP: sicaklik sensoru koptu
+[ 244.7 s]    ECU: LIMP   izin  21.8 A | neden: sensor arizasi | Tc^ 41.3 C
+[ 244.8 s] ECU olcumun gecersiz oldugunu anladi: LIMP-HOME  (0 s sonra)
+[ 252.9 s] LIMP tekrar: sensor onarildi
+[ 253.7 s]    ECU: ----   izin  21.8 A | neden: sensor arizasi | Tc^ 41.1 C
+[ 254.7 s]    ECU: NORMAL izin   0.0 A | neden: - | Tc^ 34.6 C
+[ 256.4 s] ECU NORMAL  (0 s sonra)
+[ 256.4 s] ===== STOP: iletisim koptu =====
+[ 258.5 s] STOP: olcum hatti koptu
+[ 259.7 s]    ECU: SAFE   izin   0.0 A | neden: sert sinir | Tc^ 34.2 C
+[ 259.8 s] ECU 0,5 s icinde SAFE  (1 s sonra)
+[ 267.9 s] STOP tekrar: hat onarildi
+[ 268.7 s]    ECU: ----   izin   0.0 A | neden: sert sinir | Tc^ 34.8 C
+[ 269.7 s]    ECU: NORMAL izin   0.0 A | neden: - | Tc^ 28.1 C
+[ 271.5 s] ECU NORMAL  (0 s sonra)
+[ 271.5 s] ===== WATCHDOG: yazilim kilitlendi =====
+[ 273.6 s] WATCHDOG: ECU yazilimi kilitlendi
+[ 274.7 s]    ECU: ----   izin  35.0 A | neden: - | Tc^ 26.1 C
+[ 275.7 s]    ECU: SAFE   izin   0.0 A | neden: sert sinir | Tc^ 27.3 C
+[ 275.7 s] Watchdog sifirladi, ECU SAFE'te acildi  (2 s sonra)
+[ 284.7 s]    ECU: ----   izin   0.0 A | neden: sert sinir | Tc^ 27.8 C
+[ 285.7 s]    ECU: NORMAL izin   0.0 A | neden: - | Tc^ 27.7 C
+[ 287.3 s] ECU NORMAL  (0 s sonra)
+[ 289.3 s] bitti -> build\demo_butonlar.csv
+[ 291.2 s] grafik -> build\demo_butonlar.png
