@@ -124,9 +124,21 @@ P.dec_tdot_full  = 10;    % [°C/dk] tavana ulaşır
 P.dec_psi_tdot   = 0.5;   % Ψ_Tdot tavanı
 P.dec_kr_on      = 1.2;   % Ψ_H: EKF R0 ölçeği k_R (nominal MC 0,89-1,10)
 P.dec_kr_full    = 1.3;   % SOH ~%80 (ömür sonu; veri/age_resistance.py, EKF +%3-4)
-P.dec_psi_health = 0.3;   % Ψ_H tavanı
+P.dec_soh_on     = 0.90;  % Ψ_H: kapasite SOH 90 -> 70 % (k_R ile büyüğü; gösterge)
+P.dec_soh_full   = 0.70;
 P.dec_kr_sop_max = 2.0;   % SOP direnci R0 · clip(k_R, 1, 2) · Arrhenius(T)
-P.dec_kappa      = 0.25;  % toplama ağırlığı (0: eski max)
+% Ψ toplama: olasılıksal VEYA, Ψ = 1 - Π(1 - Ψ_i) (ayar sabiti yok; eski κ kaldırıldı)
+% Ψ_A yaşlanma hızı (stress_model.m, twin/decision.py ile aynı): log2(R)/3, takvim 2x'te başlar
+P.dec_age_log2_full = 3.0;
+P.dec_age_cal_onset = 2.0;
+P.dec_age_i_ref     = 2.425;   % 0,5C [A/hücre]
+P.dec_age_floor     = 1.455;   % 0,3C [A/hücre] şarj tabanı
+P.dec_age_i_min     = 2.0;     % [A] yön ölü bandı
+P.dec_age_a         = 0.1 / 60.0;
+P.dec_age_s_ref     = 3.3563718;   % S(25 °C, 0,5, 1) (ml/07_stress_model.py)
+P.dec_cal_c1 = 7.543;  P.dec_cal_c0 = -23.75;  P.dec_cal_sc = 1e6;  P.dec_cal_ea = 6976.0;   % Schmalstieg 2014
+% Ψ_B grup dengesizliği (gösterge)
+P.dec_bal_i_max = 2.0;  P.dec_bal_a = 0.01;  P.dec_imb_on = 0.050;  P.dec_imb_full = 0.150;
 P.dec_ru_alarm   = 18;    % [K/W] 2 x nominal R_u
 P.dec_ru_alarm_off = 15;  % [K/W] altına inince kalkar (histerezis)
 P.dec_t_cool_blank = 120; % [s] açılıştan sonra soğutma alarmı yok (gözlemci yakınsaması)

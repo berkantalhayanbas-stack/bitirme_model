@@ -9,16 +9,22 @@ Durumlar:  1 NORMAL     tam performans (veri sayfası sınırları)
 İzin verilen akım (deşarj ve şarj ayrı, her ikisi de pozitif büyüklük):
   I_allow = rate_limit( min( I_datasheet(T) · (1 - Ψ),  I_SOP ) )   [LIMP-HOME'da ayrıca ≤ taban]
     I_datasheet(T): LG M50T veri sayfasının sıcaklığa bağlı sürekli akım sınırları × Np
-    Ψ (çok kriterli stres indeksi, 0..1) = min(1, Ψ_max + κ·(ΣΨ_i - Ψ_max)),  κ = 0.25
+    Ψ (stres indeksi, 0..1): bataryaya etki eden bütün kötü koşulların toplam yükü, olasılıksal VEYA
+      Ψ = 1 - Π (1 - Ψ_i)   (küçük değerlerde ≈ ΣΨ_i; tek bir Ψ_i = 1 -> Ψ = 1; ayar sabiti yok)
       Ψ_T    çekirdek sıcaklığı (Tc_hat)        45 °C'de başlar (43 -> 55 °C doğrusal), tavan 1.0
       Ψ_C    soğutma alarmı (R_u kestirimi)     alarm açık -> 0.3
       Ψ_Tdot yüzey sıcaklığı artış hızı         süzülmüş dT/dt, 3 -> 10 °C/dk, tavan 0.5
              (A2 bulgusu: gizli ısıda Tc_hat gerçeğin 11 °C gerisinde kaldı; hız erken uyarır)
-      Ψ_H    sağlık: EKF R0 ölçeği k_R          1.2 -> 1.3 (SOH ~%86 -> %80, ömür sonu), tavan 0.3 (yaşlanma / direnç artışı)
-      En büyük kriter belirler, diğerleri κ ağırlığıyla ekler (κ = 0: eski max). Yalnız Ψ_T
-      1'e ulaşabilir: durdurmak LIMP/SAFE'in işi. Baskın kriter (self.dom) açıklanabilirlik için
-      kaydedilir: 0 yok, 1 T, 2 C, 3 Tdot, 4 H. U, I²t ve dengesizlik kriterleri Monte Carlo
-      sinyal taramasıyla elendi (2026-11-21; tez notu).
+      Ψ_A    yaşlanma hızı (hibrit model, stress_model.py): çevrim R_cyc = S(T, m, dod)/S_ref · |I|/0,5C,
+             takvim R_cal = alpha(OCV(SOC), T)/alpha(OCV(0,5), 25 °C); Ψ = log2(R)/3 (1x -> 0, 8x -> 1),
+             Ψ_A = VEYA(Ψ_cyc, Ψ_cal). Takvim terimi 2x'te başlar (2x -> 0, 16x -> 1) ve yalnız gösterge
+             (akım kısmak takvim yaşlanmasını yavaşlatmaz). Çevrim terimi şarjı kısar, 0,3C tabanı var
+             (sürüşü yaşlanma için kesme)
+      Ψ_H    sağlık: kapasite SOH 90 -> 70 % ve EKF R0 ölçeği k_R 1.2 -> 1.3 (büyüğü), gösterge
+      Ψ_B    grup dengesizliği: V_max - V_min (|I| < 2 A'da, 10 s süzgeç) 50 -> 150 mV, gösterge
+      Deşarj Ψ_P = VEYA(Ψ_T, Ψ_C, Ψ_Tdot); şarj ayrıca (1 - Ψ_A) ile (tabanlı). Panelin "Battery stress"i
+      altısının VEYA'sı; baskın kriter (self.dom) en büyük Ψ_i: 0 yok, 1 T, 2 C, 3 Tdot, 4 H, 5 A, 6 B.
+      Yalnız Ψ_T 1'e ulaşabilir: durdurmak LIMP/SAFE'in işi. Tasarım: bms_ecu/docs/stress_design.md.
     I_SOP: gerilim payına dayalı güç sınırı (state of power). Hücre gerilimi sınıra yaklaştıkça
            akım kısılır:  I_SOP = |I_şimdi| + k · Np · (V_ölçülen - V_sınır) / R0(T)
                 R0(T) = R0 · clip(k_R, 1, 2) · Arrhenius(T): EKF'nin bulduğu direnç artışı SOP'u da kısar.
@@ -43,6 +49,8 @@ Python referansı; Simulink karşılığı: simulink/decision_logic.m (birebir a
 """
 import numpy as np
 
+from stress_model import STRESS_S_REF, stress_S, stress_cal_alpha
+
 NORMAL, DERATE, LIMP, SAFE = 1, 2, 3, 4
 NAMES = {1: "NORMAL", 2: "DERATE", 3: "LIMP-HOME", 4: "SAFE-STOP"}
 
@@ -52,8 +60,29 @@ C_ANOM = 256    # termal anomali (thermal_anomaly.py); 0x201'de cause 8 bit: C_T
 C_TDOT = 512    # sıcaklık artış hızı (Ψ_Tdot > 0); 0x201'de C_THERM de kurulur
 C_HEALTH = 1024 # direnç artışı (Ψ_H > 0); 0x201'de 8 bitlik karşılığı yok (yalnız UART telemetrisi)
 C_TEVT = 2048   # termal olay: SAFE'te akım yokken yüzey ortamın üstünde ısınıyor (kilitli; 0x201'de karşılığı yok)
-DOM_NONE, DOM_T, DOM_C, DOM_TDOT, DOM_H = 0, 1, 2, 3, 4
-DOM_NAMES = {0: "none", 1: "core temperature", 2: "cooling", 3: "temperature rise rate", 4: "cell resistance"}
+C_AGE = 4096    # yaşlanma hızı (Ψ_A > 0): yalnız şarjı kısar, durumu değiştirmez (bilgi; yalnız UART)
+C_IMBAL = 8192  # grup dengesizliği (Ψ_B > 0): gösterge (bilgi; yalnız UART)
+C_INFO = C_HEALTH | C_AGE | C_IMBAL   # DERATE'e yol açmayan neden bitleri
+DOM_NONE, DOM_T, DOM_C, DOM_TDOT, DOM_H, DOM_A, DOM_B = 0, 1, 2, 3, 4, 5, 6
+DOM_NAMES = {0: "none", 1: "core temperature", 2: "cooling", 3: "temperature rise rate", 4: "battery health",
+             5: "ageing rate", 6: "cell imbalance"}
+# OCV tablosu (Kirkaldy 2024 M50T GITT; bms_config.h SOH_OCV_*): Ψ_A'nın takvim terimi için
+OCV_S = (0.0, 0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8,
+         0.85, 0.9, 0.95, 0.98, 1.0)
+OCV_V = (2.9414, 3.0161, 3.1444, 3.2871, 3.4047, 3.4646, 3.5055, 3.5621, 3.6086, 3.6418, 3.6729, 3.7119,
+         3.7594, 3.8136, 3.8737, 3.9207, 3.9641, 4.0162, 4.0619, 4.0873, 4.112, 4.1519, 4.1845)
+
+
+def or_agg(xs):
+    """Olasılıksal VEYA: 1 - Π(1 - x)."""
+    r = 1.0
+    for x in xs:
+        r *= 1.0 - x
+    return 1.0 - r
+
+
+def clip01(x):
+    return min(1.0, max(0.0, x))
 # C_DS_T: veri sayfasının sıcaklığa bağlı akım sınırı nominalin altında (soğuk veya çok sıcak hücre)
 
 
@@ -73,10 +102,21 @@ class DecisionParams:
     # dış ısı ~23 °C/dk)
     td_a_f, td_a_r = 0.02, 1.0 / 300.0   # ts/5 s, ts/30 s (Euler)
     tdot_on, tdot_full, psi_tdot = 3.0, 10.0, 0.5
-    # Ψ_H: EKF'nin R0 ölçeği k_R (nominal MC: 0,89-1,10)
-    kr_on, kr_full, psi_health = 1.2, 1.3, 0.3
+    # Ψ_H: kapasite SOH'u (soh_*) ve EKF'nin R0 ölçeği k_R (nominal MC: 0,89-1,10); büyüğü
+    kr_on, kr_full = 1.2, 1.3
+    soh_on, soh_full = 0.90, 0.70
     kr_sop_max = 2.0                 # SOP direnci: R0 · clip(k_R, 1, kr_sop_max)
-    kappa = 0.25                     # toplama: Ψ = min(1, Ψ_max + κ (ΣΨ_i - Ψ_max))
+    # Ψ_A: yaşlanma hızı oranı R (1x -> 0, 8x -> 1, log2), şarj tabanı 0,3C (VARSAYIM; MC ile ayarlanır)
+    age_log2_full = 3.0
+    age_cal_onset = 2.0             # takvim oranı bunun üstünde sayılır (ılık / yarı dolu park normal)
+    age_i_ref = 2.425               # 0,5C [A/hücre]: çevrim referansı (25 °C, m 0,5, dod 1)
+    age_floor = 1.455               # 0,3C [A/hücre]: Ψ_A şarjı bunun altına kısmaz
+    age_i_min = 2.0                 # [A] yön ölçümü ölü bandı (yarım çevrim kuralı)
+    age_a = 0.1 / 60.0              # R_cyc süzgeci (tau 60 s)
+    cell_q = 4.85                   # [Ah] birikimli hasar için
+    # Ψ_B: grup dengesizliği (yalnız düşük akımda, IR düşümü karışmasın)
+    bal_i_max, bal_a = 2.0, 0.01    # [A], süzgeç (tau 10 s)
+    imb_on, imb_full = 0.050, 0.150
     ru_alarm = 18.0
     ru_alarm_off = 15.0     # histerezis: R_u kestirimi eşik çevresinde yakınsarken alarm titriyordu (HIL)
     t_cool_blank = 120.0    # açılıştan sonra soğutma alarmı yok: gözlemci sıcak/yüklü pakette başlarsa
@@ -114,6 +154,9 @@ class DecisionParams:
     zero_max = 3.0
 
 
+CAL_REF = stress_cal_alpha(float(np.interp(0.5, OCV_S, OCV_V)), 25.0)   # takvim referansı (25 °C, SOC 0,5)
+
+
 def ds_limit(T, Tb, Ib):
     """Veri sayfası akım sınırı [A/hücre]: parçalı doğrusal tablo (bölge dışında 0)."""
     return float(np.interp(T, Tb, Ib, left=0.0, right=0.0))
@@ -146,8 +189,20 @@ class Decision:
         self.tdot = 0.0                # [°C/dk]
         self.n_i0 = self.n_te = 0      # termal olay: SAFE'te akımsız örnek, koşul süresi
         self.tevt = False              # termal olay (kilitlenir)
-        self.psi_i = (0.0, 0.0, 0.0, 0.0)   # Ψ_T, Ψ_C, Ψ_Tdot, Ψ_H (son adım)
-        self.psi_s = 0.0               # çok kriterli Ψ
+        self.psi_i = (0.0,) * 6        # Ψ_T, Ψ_C, Ψ_Tdot, Ψ_H, Ψ_A, Ψ_B (son adım)
+        self.psi_s = 0.0               # Ψ: altısının VEYA'sı
+        self.psi_p = 0.0               # koruma Ψ_P = VEYA(Ψ_T, Ψ_C, Ψ_Tdot): deşarjı kısar
+        # Ψ_A: yarım çevrim izleyici + oranlar
+        self.a_dir = 0                 # +1 deşarj, -1 şarj, 0 henüz yok
+        self.a_soc_rev = 0.5           # son yön değişimindeki SOC
+        self.a_sum = 0.0
+        self.a_n = 0
+        self.a_swing = 0.0             # tamamlanan son yarım çevrimin derinliği
+        self.r_cyc = 0.0               # süzülmüş çevrim hızı oranı
+        self.r_cal = 0.0               # takvim hızı oranı
+        self.dmg = 0.0                 # birikimli hasar: referans stresli eşdeğer tam çevrim
+        self.dv_f = None               # Ψ_B süzgeci [V]
+        self.psi_cyc = 0.0             # Ψ_A'nın çevrim payı (şarjı kısan)
         self.dom = DOM_NONE            # baskın kriter
 
     def _band(self, flag, ratio):
@@ -159,7 +214,7 @@ class Decision:
         return flag
 
     def step(self, I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est,
-             T_valid=1, I_valid=1, CAN_ok=1, T_meas=None, T_amb=None, T_anom=0, k_R=1.0):
+             T_valid=1, I_valid=1, CAN_ok=1, T_meas=None, T_amb=None, T_anom=0, k_R=1.0, soh_c=1.0):
         p = self.p
         cause = 0
         # ---------------------------------------------------- stres indeksi (SAFE'te de hesaplanır:
@@ -189,14 +244,47 @@ class Decision:
         else:
             self.td_on, self.tdot = False, 0.0
         psi_D = p.psi_tdot * float(np.clip((self.tdot - p.tdot_on) / (p.tdot_full - p.tdot_on), 0, 1))
-        # Ψ_H açılıştan sonra t_cool_blank (120 s) yok: EKF k_R yakınsamadan / ani SOC değişiminde fırlar
-        psi_H = 0.0 if self.n_run < n_blank else             p.psi_health * float(np.clip((k_R - p.kr_on) / (p.kr_full - p.kr_on), 0, 1))
-        self.psi_i = (psi_T, psi_C, psi_D, psi_H)
-        lim = self.psi_i[:3]                     # Ψ_H yalnız gösterge (neden 1024), toplama girmez
-        pm = max(lim)
-        self.psi_s = min(1.0, pm + p.kappa * (sum(lim) - pm))
-        self.dom = 1 + lim.index(pm) if pm > 0 else DOM_NONE
-        psi = self.psi_s
+        blank = self.n_run < n_blank   # açılıştan sonra 120 s: EKF (SOC, k_R) yakınsamadan Ψ_H/Ψ_A/Ψ_B yok
+        # Ψ_H: sağlık (gösterge)
+        psi_H = 0.0 if blank else max(clip01((p.soh_on - soh_c) / (p.soh_on - p.soh_full)),
+                                      clip01((k_R - p.kr_on) / (p.kr_full - p.kr_on)))
+        # Ψ_A: yaşlanma hızı. Yarım çevrim: |I| > age_i_min iken yön değişince yeni yarım çevrim başlar;
+        # m = yarım çevrimin ortalama SOC'si, dod = şimdiki salınım ile son tam yarım çevrimin büyüğü
+        soc = clip01(SOC_est)
+        i_abs = abs(I_meas)
+        r_inst = 0.0
+        if i_abs > p.age_i_min:
+            d = 1 if I_meas > 0 else -1
+            if d != self.a_dir:
+                if self.a_dir != 0:
+                    self.a_swing = abs(soc - self.a_soc_rev)
+                self.a_dir, self.a_soc_rev, self.a_sum, self.a_n = d, soc, 0.0, 0
+            self.a_sum += soc
+            self.a_n += 1
+            m = self.a_sum / self.a_n
+            dod = clip01(max(abs(soc - self.a_soc_rev), self.a_swing))
+            s_rel = stress_S(Tc_hat, m, dod) / STRESS_S_REF
+            r_inst = s_rel * (i_abs / p.np_) / p.age_i_ref
+            self.dmg += s_rel * i_abs * p.ts / (2.0 * p.np_ * p.cell_q * 3600.0)
+        self.r_cyc += p.age_a * (r_inst - self.r_cyc)
+        v_ocv = float(np.interp(soc, OCV_S, OCV_V))
+        self.r_cal = stress_cal_alpha(v_ocv, Tc_hat) / CAL_REF
+        psi_cyc = clip01(np.log2(max(self.r_cyc, 1e-9)) / p.age_log2_full)
+        psi_cal = clip01(np.log2(max(self.r_cal / p.age_cal_onset, 1e-9)) / p.age_log2_full)
+        psi_cyc = 0.0 if blank else psi_cyc
+        psi_A = 0.0 if blank else or_agg((psi_cyc, psi_cal))
+        self.psi_cyc = psi_cyc
+        # Ψ_B: grup dengesizliği (gösterge), yalnız düşük akımda güncellenir
+        dv = V_max - V_min
+        if i_abs < p.bal_i_max:
+            self.dv_f = dv if self.dv_f is None else self.dv_f + p.bal_a * (dv - self.dv_f)
+        psi_B = 0.0 if (blank or self.dv_f is None) else clip01((self.dv_f - p.imb_on) / (p.imb_full - p.imb_on))
+        self.psi_i = (psi_T, psi_C, psi_D, psi_H, psi_A, psi_B)
+        self.psi_p = or_agg(self.psi_i[:3])
+        self.psi_s = or_agg(self.psi_i)
+        pm = max(self.psi_i)
+        self.dom = 1 + self.psi_i.index(pm) if pm > 0 else DOM_NONE
+        psi = self.psi_p
         # ---------------------------------------------------- sert sınırlar (kilitlenir)
         n_hard = round(p.t_hard / p.ts)
         self.n_lo = self.n_lo + 1 if V_min < p.v_safe_lo else 0
@@ -241,6 +329,8 @@ class Decision:
         if psi_C > 0: cause |= C_COOL
         if psi_D > 0: cause |= C_TDOT | C_THERM
         if psi_H > 0: cause |= C_HEALTH
+        if psi_A > 0: cause |= C_AGE
+        if psi_B > 0: cause |= C_IMBAL
 
         # ---------------------------------------------------- gerilim payı (SOP)
         r0 = p.r0 * min(max(k_R, 1.0), p.kr_sop_max) * np.exp(p.ea / p.rgas * (1 / (Tc_hat + 273.15) - 1 / 298.15))
@@ -259,7 +349,9 @@ class Decision:
         if self.f_sop_chg: cause |= C_SOP_CHG
 
         tgt_dis = max(0.0, min(i_ds_dis * (1 - psi), sop_dis))
-        tgt_chg = max(0.0, min(i_ds_chg * (1 - psi), sop_chg))
+        # şarj: koruma (1 - Ψ_P) ve çevrim yaşlanması (1 - Ψ_cyc); bu pay 0,3C tabanının altına inmez
+        f_age = min(1.0, max(1.0 - psi_cyc, p.age_floor * p.np_ / max(i_ds_chg, 1e-6)))
+        tgt_chg = max(0.0, min(i_ds_chg * (1 - psi) * f_age, sop_chg))
 
         # ---------------------------------------------------- LIMP-HOME nedenleri
         sensor_bad = T_valid < 0.5 or I_valid < 0.5 or abs(bias_est) > p.bias_max or self.zero_bad
@@ -276,7 +368,7 @@ class Decision:
             tgt_chg = min(tgt_chg, p.floor_frac * self.I_nom_chg)
 
         # ---------------------------------------------------- durum + histerezis
-        want = LIMP if limp else (DERATE if (cause & ~C_HEALTH) else NORMAL)   # 1024 bilgi
+        want = LIMP if limp else (DERATE if (cause & ~C_INFO) else NORMAL)   # 1024/4096/8192 bilgi
         if want > self.state:                    # kısıtlayıcı yön: anında
             self.state, self.n_ok = want, 0
         elif want < self.state:                  # gevşetici yön: bekle

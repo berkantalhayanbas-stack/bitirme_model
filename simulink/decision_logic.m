@@ -1,4 +1,4 @@
-function [state, I_allow_dis, I_allow_chg, psi, cause, psi_s, dom, psi_i, tdot] = decision_logic(I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est, T_valid, I_valid, CAN_ok, T_meas, T_amb, T_anom, k_R)
+function [state, I_allow_dis, I_allow_chg, psi, cause, psi_s, dom, psi_i, tdot, psi_p] = decision_logic(I_meas, V_min, V_max, Tc_hat, Ts_hat, Ru_hat, SOC_est, bias_est, T_valid, I_valid, CAN_ok, T_meas, T_amb, T_anom, k_R, soh_c)
 %DECISION_LOGIC  Güvenli karar mekanizması (Hedef 4): 4 durumlu makine + izin verilen akım.
 %   Durumlar: 1 NORMAL, 2 DERATE, 3 LIMP-HOME, 4 SAFE-STOP (kilitlenir; çıkış: clear decision_logic)
 %   Çıkışlar: I_allow_dis / I_allow_chg (pozitif büyüklük, A), psi = 1 - I_allow_dis/I_nom,
@@ -6,18 +6,25 @@ function [state, I_allow_dis, I_allow_chg, psi, cause, psi_s, dom, psi_i, tdot] 
 %             8 şarj gerilim payı, 16 veri sayfası sıcaklık sınırı, 32 sensör, 64 boş, 128 sert sınır,
 %             256 termal anomali (thermal_anomaly_step.m; 1 de kurulur: CAN 0x201'de cause 8 bit),
 %             2048 termal olay (yalnız SAFE'te: akım yokken yüzey ortamın üstünde ısınıyor; kilitli),
-%             512 sıcaklık artış hızı (Ψ_Tdot > 0; 1 de kurulur), 1024 direnç artışı (Ψ_H > 0)
-%             psi_s = çok kriterli stres indeksi Ψ, dom = baskın kriter (0 yok, 1 T, 2 C, 3 Tdot, 4 H),
-%             psi_i = [Ψ_T Ψ_C Ψ_Tdot Ψ_H], tdot = süzülmüş yüzey sıcaklığı artış hızı [°C/dk]
+%             512 sıcaklık artış hızı (Ψ_Tdot > 0; 1 de kurulur), 1024 sağlık (Ψ_H > 0),
+%             4096 yaşlanma hızı (Ψ_A > 0), 8192 grup dengesizliği (Ψ_B > 0) (1024/4096/8192 bilgi: DERATE değil)
+%             psi_s = stres indeksi Ψ = VEYA(Ψ_i), psi_p = koruma Ψ_P = VEYA(Ψ_T, Ψ_C, Ψ_Tdot),
+%             dom = baskın kriter (0 yok, 1 T, 2 C, 3 Tdot, 4 H, 5 A, 6 B),
+%             psi_i = [Ψ_T Ψ_C Ψ_Tdot Ψ_H Ψ_A Ψ_B], tdot = süzülmüş yüzey sıcaklığı artış hızı [°C/dk]
 %   T_anom (isteğe bağlı, varsayılan 0): açıklanamayan ısı -> LIMP-HOME
 %   k_R (isteğe bağlı, varsayılan 1): EKF R0 ölçeği -> Ψ_H ve SOP direnci R0·clip(k_R,1,2)
+%   soh_c (isteğe bağlı, varsayılan 1): kapasite SOH'u -> Ψ_H
 %
-%   I_allow = rampa( min( I_veri_sayfası(T_surf) * (1 - Ψ),  I_SOP ) )
-%     Ψ = min(1, Ψ_max + κ (ΣΨ_i - Ψ_max)), κ = 0.25 (κ = 0: eski max):
+%   I_allow_dis = rampa( min( I_veri_sayfası(T_surf) * (1 - Ψ_P),  I_SOP ) )
+%   I_allow_chg = rampa( min( I_veri_sayfası(T_surf) * (1 - Ψ_P) * max(1 - Ψ_cyc, 0,3C taban), I_SOP ) )
+%     VEYA(x) = 1 - Π(1 - x_i); Ψ_P = VEYA(Ψ_T, Ψ_C, Ψ_Tdot), gösterge Ψ = VEYA(altısı):
 %       Ψ_T    43→55 °C doğrusal (45 °C'de başlar, 43 altında kalkar), tavan 1
 %       Ψ_C    soğutma alarmı (R_u > 18 K/W'ta açılır, < 15 K/W'ta kalkar; ilk 120 s yok) 0.3
 %       Ψ_Tdot ölçülen yüzey T'nin süzülmüş artış hızı 3→10 °C/dk, tavan 0.5
-%       Ψ_H    EKF R0 ölçeği k_R 1.2→1.3 (SOH ~%86→%80), tavan 0.3
+%       Ψ_H    kapasite SOH 90→70 % ve k_R 1.2→1.3 (büyüğü), gösterge
+%       Ψ_A    yaşlanma hızı: VEYA(Ψ_cyc, Ψ_cal), Ψ = log2(R)/3; R_cyc = S(T,m,dod)/S_ref · |I|/0,5C
+%              (stress_model.m, yarım çevrim kuralı), R_cal = alpha(OCV(SOC),T)/alpha(OCV(0,5),25 °C), 2x'te başlar
+%       Ψ_B    V_max - V_min (|I| < 2 A, 10 s süzgeç) 50→150 mV, gösterge
 %     I_SOP (hızlı, akımı keser) = |I| + k·Np·(V - V_sınır)/R0(T); gerilim eşiği yerine akım sınırı
 %     Durum için yavaş kapasite tahmini: SOP_qs = Np·(V ± |i|R0 - V_sınır)/(R0+R1+R2),
 %         < %90 · veri sayfası sınırı -> neden; ≥ %100 -> kalkar (histerezis bandı)
@@ -33,6 +40,7 @@ function [state, I_allow_dis, I_allow_chg, psi, cause, psi_s, dom, psi_i, tdot] 
 %#codegen
 if nargin < 14, T_anom = 0; end
 if nargin < 15, k_R = 1; end
+if nargin < 16, soh_c = 1; end
 persistent P D
 if isempty(P)
     P = bms_param_struct();
@@ -41,7 +49,9 @@ if isempty(D)
     D = struct('state', 1, 'n_ok', 0, 'n_lo', 0, 'n_hi', 0, 'therm_on', false, 'cool_on', false, 'n_run', 0, 'n_hl', 0, 'n_hs', 0, ...
                'f_ds', false, 'f_sop_dis', false, 'f_sop_chg', false, 'i_dis', 0, 'i_chg', 0, ...
                'n_zero', 0, 'i0_sum', 0, 'i0_ok', true, 'zero_bad', false, ...
-               'td_on', false, 't_f', 0, 'tdot', 0, 'n_i0', 0, 'n_te', 0, 'tevt', false);
+               'td_on', false, 't_f', 0, 'tdot', 0, 'n_i0', 0, 'n_te', 0, 'tevt', false, ...
+               'a_dir', 0, 'a_soc_rev', 0.5, 'a_sum', 0, 'a_n', 0, 'a_swing', 0, 'r_cyc', 0, 'dmg', 0, ...
+               'dv_f', 0, 'dv_on', false);
 end
 ts = P.Ts;  np_ = P.Np;
 I_nom_dis = max(P.dec_I_dis) * np_;
@@ -82,11 +92,47 @@ else
     D.td_on = false;  D.tdot = 0;
 end
 psi_D = P.dec_psi_tdot * min(max((D.tdot - P.dec_tdot_on) / (P.dec_tdot_full - P.dec_tdot_on), 0), 1);
-psi_H = P.dec_psi_health * min(max((k_R - P.dec_kr_on) / (P.dec_kr_full - P.dec_kr_on), 0), 1);
-if D.n_run < n_blank, psi_H = 0; end   % açılıştan sonra 120 s yok (EKF k_R yakınsıyor)
-psi_i = [psi_T psi_C psi_D psi_H];
-[pm, im] = max(psi_i(1:3));             % ilk en büyük: Python index() ile aynı; Ψ_H yalnız gösterge
-psi_s = min(1, pm + P.dec_kappa * (sum(psi_i(1:3)) - pm));
+blank = D.n_run < n_blank;              % açılıştan sonra 120 s Ψ_H/Ψ_A/Ψ_B yok (EKF yakınsıyor)
+psi_H = max(min(max((P.dec_soh_on - soh_c) / (P.dec_soh_on - P.dec_soh_full), 0), 1), ...
+            min(max((k_R - P.dec_kr_on) / (P.dec_kr_full - P.dec_kr_on), 0), 1));
+if blank, psi_H = 0; end
+% Ψ_A: yarım çevrim kuralı (|I| > ölü bant, yön değişince yeni yarım çevrim)
+soc = min(max(SOC_est, 0), 1);
+i_abs = abs(I_meas);
+r_inst = 0;
+if i_abs > P.dec_age_i_min
+    if I_meas > 0, dr = 1; else, dr = -1; end
+    if dr ~= D.a_dir
+        if D.a_dir ~= 0, D.a_swing = abs(soc - D.a_soc_rev); end
+        D.a_dir = dr;  D.a_soc_rev = soc;  D.a_sum = 0;  D.a_n = 0;
+    end
+    D.a_sum = D.a_sum + soc;  D.a_n = D.a_n + 1;
+    m = D.a_sum / D.a_n;
+    dod = min(max(max(abs(soc - D.a_soc_rev), D.a_swing), 0), 1);
+    s_rel = stress_model(Tc_hat, m, dod) / P.dec_age_s_ref;
+    r_inst = s_rel * (i_abs / np_) / P.dec_age_i_ref;
+    D.dmg = D.dmg + s_rel * i_abs * ts / (2 * np_ * P.Q_Ah * 3600);
+end
+D.r_cyc = D.r_cyc + P.dec_age_a * (r_inst - D.r_cyc);
+v_ocv = interp1(P.soc_tab, P.ocv_tab, soc);
+alpha = @(v, t) max(0, P.dec_cal_c1 * v + P.dec_cal_c0) * P.dec_cal_sc * exp(-P.dec_cal_ea / (t + 273.15));
+r_cal = alpha(v_ocv, Tc_hat) / alpha(interp1(P.soc_tab, P.ocv_tab, 0.5), 25.0);
+psi_cyc = min(max(log2(max(D.r_cyc, 1e-9)) / P.dec_age_log2_full, 0), 1);
+psi_cal = min(max(log2(max(r_cal / P.dec_age_cal_onset, 1e-9)) / P.dec_age_log2_full, 0), 1);
+if blank, psi_cyc = 0; end
+psi_A = 1 - (1 - psi_cyc) * (1 - psi_cal);
+if blank, psi_A = 0; end
+% Ψ_B: yalnız düşük akımda güncellenir
+dv = V_max - V_min;
+if i_abs < P.dec_bal_i_max
+    if D.dv_on, D.dv_f = D.dv_f + P.dec_bal_a * (dv - D.dv_f); else, D.dv_f = dv; D.dv_on = true; end
+end
+psi_B = 0;
+if ~blank && D.dv_on, psi_B = min(max((D.dv_f - P.dec_imb_on) / (P.dec_imb_full - P.dec_imb_on), 0), 1); end
+psi_i = [psi_T psi_C psi_D psi_H psi_A psi_B];
+psi_p = 1 - prod(1 - psi_i(1:3));
+psi_s = 1 - prod(1 - psi_i);
+[pm, im] = max(psi_i);                  % ilk en büyük: Python index() ile aynı
 dom = 0;
 if pm > 0, dom = im; end
 tdot = D.tdot;
@@ -145,8 +191,9 @@ qs_chg = np_ * (P.dec_v_lim_chg - (V_max - max(-ic, 0) * r0)) / r_dc;
 D.f_sop_dis = band(D.f_sop_dis, qs_dis / max(i_ds_dis, 1e-6), P);
 D.f_sop_chg = band(D.f_sop_chg, qs_chg / max(i_ds_chg, 1e-6), P);
 
-tgt_dis = max(0, min(i_ds_dis * (1 - psi_s), sop_dis));
-tgt_chg = max(0, min(i_ds_chg * (1 - psi_s), sop_chg));
+tgt_dis = max(0, min(i_ds_dis * (1 - psi_p), sop_dis));
+f_age = min(1, max(1 - psi_cyc, P.dec_age_floor * np_ / max(i_ds_chg, 1e-6)));   % Ψ_cyc payı 0,3C tabanlı
+tgt_chg = max(0, min(i_ds_chg * (1 - psi_p) * f_age, sop_chg));
 
 % ---------------------------------------------------- LIMP-HOME
 sensor_bad = T_valid < 0.5 || I_valid < 0.5 || abs(bias_est) > P.dec_bias_max || D.zero_bad;
@@ -159,12 +206,13 @@ if limp
 end
 
 cause = 1*(psi_T > 0 || hot_ss || T_anom > 0.5 || psi_D > 0) + 2*(psi_C > 0) + 4*D.f_sop_dis + 8*D.f_sop_chg + 16*D.f_ds ...
-      + 32*sensor_bad + 64*empty + 256*(T_anom > 0.5) + 512*(psi_D > 0) + 1024*(psi_H > 0);
+      + 32*sensor_bad + 64*empty + 256*(T_anom > 0.5) + 512*(psi_D > 0) + 1024*(psi_H > 0) ...
+      + 4096*(psi_A > 0) + 8192*(psi_B > 0);
 
 % ---------------------------------------------------- durum + histerezis
 if limp
     want = 3;
-elseif cause - bitand(cause, 1024) > 0   % 1024 (Ψ_H) bilgi, DERATE değil
+elseif cause - bitand(cause, 1024 + 4096 + 8192) > 0   % Ψ_H/Ψ_A/Ψ_B bilgi, DERATE değil
     want = 2;
 else
     want = 1;
