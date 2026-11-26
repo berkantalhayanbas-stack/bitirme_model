@@ -34,7 +34,7 @@ Aşağıdaki listede 2, 3, 6 ve literatürdeki adaylar tezde "sınırlamalar / g
        sıçramasının ortak kökü olabilir.
 3. [x] (25 Kasım: kapasite SOH'u ile çözüldü) SOH göstergesi hep %100 (rint kestiricisi yumuşak çevrimde örnek almıyor): tezde sınırlama ya da
        k_R'den SOH; kalıcı bellek gerekir. Şimdilik bekliyor (kullanıcı kararı).
-4. [x] Panel: hangi kriterin gücü kıstığı yazıyor (26 Kasım). Kalan: config.php + index.html hosting'e yüklenecek (kullanıcı).
+4. [x] Panel: hangi kriterin gücü kıstığı yazıyor (26 Kasım). Hosting'e yüklendi (26 Kasım); panel araç ekranı + Technical details olarak yenilendi.
 5. [-] ESP Wi-Fi gateway: iptal (22 Kasım), PC gateway kullanılıyor.
 6. [ ] Aşağıdaki eski açıklar: A7 (b_I kayması), A8 (T hız teşhisi gürültü), 4, 5, 6; B7-B12; C14-C17.
 7. [x] Eski sonuçların yeniden üretimi: 22 Kasım (OCV), 26 Kasım (yeni stres indeksi + SOC kırpması; sensitivity, bias_sweep, thermal_anomaly, soh_learning, stress_index_drive).
