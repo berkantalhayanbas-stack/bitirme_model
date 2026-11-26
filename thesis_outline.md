@@ -1,3 +1,37 @@
+# Thesis chapter plan (short thesis, updated 2026-11-26)
+
+The LaTeX thesis (`tez/main.tex`, `tez/chapters/`) follows the base paper Nejakar et al. 2025 (twin + SOC + cloud). Our addition is **control**: the BMS limits current and protects the pack. Numbers: the FINAL REGENERATION (2026-11-22) and REFRESH 2026-11-26 sections of the thesis notes.
+Marks: ✅ written, needs at most a check · 🔄 written but out of date (fix) · ➕ new section to write.
+
+| Ch. | Section | Content | Figures / tables | State |
+|---|---|---|---|---|
+| 0 | Abstract | problem, what, methods, key numbers (add: stress index, capacity SOH, real-pack check) | – | 🔄 |
+| 1 | Introduction | motivation, base paper, aim/scope, contributions (add 3: combined stress index, persistent capacity SOH, real-pack validation) | – | 🔄 |
+| 2 | Background | SOC methods; thermal; **ageing and SOH (capacity vs resistance, cycle vs calendar)**; twin/cloud; HIL | – | 🔄 add ageing paragraph |
+| 3.1 | Digital twin | 19 groups, 2-RC + thermal, ageing (SOH → Q, R), drive cycle | `01_twin_overview`, `twin_crossvalidation` | ✅ |
+| 3.2 | Data acquisition and CAN | 11 messages, E2E (counter + CRC-8), timeouts, DBC, Wireshark, bus load | `can_frame_layout`, `can_bus_load`, `can_la_frame_0x110` | ✅ (+ DBC sentence) |
+| 3.3 | SOC estimation | 5-state EKF, A9 offset check, k_R, **SOC clamp [0,1]** | `estimator_comparison_normal` | 🔄 one line |
+| 3.4 | State of health | **capacity SOH learned between rests (OCV table, own offset), flash-persistent; k_R for resistance**; ML tree → tried, limited | `soh_learning` | 🔄 replace ML-tree text |
+| 3.5 | Battery stress index Ψ | **Ψ = 1 − Π(1 − Ψ_i), six conditions; Ψ_P limits discharge; Ψ_A (hybrid physics × data, LOCO 3.52 %) limits charge ≥ 0.3C; H, B display** | `stress_index_drive`, LOCO table | 🔄 rewrite |
+| 3.6 | Decision logic | NORMAL/DERATE/LIMP/SAFE, SOP, T_ss, thermal anomaly, thermal event | `decision_closed_loop` | ✅ |
+| 3.7 | Cloud and dashboard | gateway → HTTPS → PHP/SQLite; **EV-cluster overview + technical details** | new screenshots | 🔄 new screenshots |
+| 4 | Hardware and real time | bench (Nucleo + Uno + CAN), wiring, step time 116 µs, UART/FIFO lesson, **damaged Uno MOSI → software SPI** (one sentence) | `system_block_diagram`, `bench_photo` | 🔄 small |
+| 5.1 | Model accuracy | OCV GITT 17.0 mV, Ea, k_R(SOH) | `ocv_dogrulama`, `ea_kirkaldy`, `age_resistance` | ✅ |
+| 5.2 | **Real pack vs twin** | 19S12P measured, 20 mV spread vs twin 24 mV; meter-rounding finding; age estimate SOH ~88 % | `real_pack_cell_voltages`, `real_pack_vs_twin`, `real_pack_age_estimate` | ➕ |
+| 5.3 | SOC accuracy | RMSE 0.277 %, comparison table, bias sweep, sensitivity 25/25 | `estimator_comparison_table`, `bias_sweep`, `sensitivity` | ✅ check numbers |
+| 5.4 | **SOH learning** | 100-day SIL: learned within 1.15 %, SOC error 0.89 % vs 3.08 % without feedback; bench persistence | `soh_learning`, `soh_bench` | ➕ |
+| 5.5 | **Stress index in closed loop** | aged hot pack: Ψ 0.97 but Ψ_P 0.60; external heat: Ψ_Tdot +6.9 s; cold-charge finding | `stress_index_drive` | ➕ |
+| 5.6 | Fault detection and safety | MC 1000/1000 board = PC; HIL scenarios (modes 5/5, hidden 6/6, overheating); flaws found only by HIL; safety table | `mc_overview`, `scenario_*`, `safety_analysis` | 🔄 new numbers |
+| 5.7 | Cloud synchronisation | 0 % loss, RTT p50 102 ms | `link_quality_20261121` | ✅ |
+| 5.8 | Dashboard | driver view vs technical view | new screenshots | 🔄 |
+| 5.9 | Comparison with base paper | table | – | ✅ (+ rows: SOH, stress) |
+| 5.10 | Limitations | + calendar term not M50T-calibrated, no C-rate in ageing data, Ψ_A thresholds assumed, multimeter-level real-pack data | – | 🔄 |
+| 6 | Conclusion and future work | + real measurement node in place of the twin (same CAN interface), calibrated calendar ageing, UDS, SecOC | – | 🔄 |
+
+Order of work: 3.4 + 3.5 (largest change) → 5.2, 5.4, 5.5 (new) → 5.6 numbers → screenshots (3.7, 5.8) → abstract and introduction last.
+
+---
+
 # Thesis outline (skeleton)
 
 Working skeleton built 2026-11-22 from existing results only (feature freeze: no new experiments).
